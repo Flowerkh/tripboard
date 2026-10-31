@@ -25,7 +25,23 @@ export interface State {
   pending: Record<string, Pending>;
   run: Run | null;
   toast: string | null;
+  /** signed-in Kakao account (null = not signed in, undefined = still checking) */
+  user: Account | null | undefined;
+  /** what is already in the account, per trip (saved on this device) */
+  cloud: CloudMeta;
+  sync: SyncStatus;
 }
+
+export interface Account { id: string; name: string; avatar: string }
+export interface CloudMeta {
+  userId: string;
+  /** fingerprint + server time of the version both sides agree on */
+  trips: Record<string, { sig: string; at: string }>;
+  /** trips deleted here that still need deleting in the account */
+  deleted: string[];
+}
+export interface SyncStatus { state: "idle" | "syncing" | "error"; at?: number; error?: string }
+export const EMPTY_CLOUD: CloudMeta = { userId: "", trips: {}, deleted: [] };
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
@@ -54,6 +70,9 @@ function load(): State {
     pending: {},
     run: null,
     toast: null,
+    user: undefined,
+    cloud: { ...EMPTY_CLOUD, ...(saved.cloud ?? {}) },
+    sync: { state: "idle" },
   };
 }
 
@@ -65,8 +84,8 @@ function persist() {
   clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
     try {
-      const { trips, items, chats, settings } = state;
-      localStorage.setItem(KEY, JSON.stringify({ trips, items, chats, settings }));
+      const { trips, items, chats, settings, cloud } = state;
+      localStorage.setItem(KEY, JSON.stringify({ trips, items, chats, settings, cloud }));
     } catch {
       /* quota or private mode: keep working in memory */
     }
@@ -194,7 +213,13 @@ export function resetAll() {
   } catch {
     /* ignore */
   }
-  state = { ...load(), settings: { ...DEFAULT_SETTINGS, apiKey: state.settings.apiKey } };
+  // keep the account: trips deleted here are then deleted in the account too
+  state = { ...load(), settings: { ...DEFAULT_SETTINGS, apiKey: state.settings.apiKey }, user: state.user, cloud: state.cloud };
   persist();
   subs.forEach((f) => f());
+}
+
+/** Sign-out: remove this account's trips from the device (they stay in the account). */
+export function clearAccountData() {
+  setState({ trips: [], items: [], chats: {}, undo: {}, pending: {}, run: null, cloud: { ...EMPTY_CLOUD }, sync: { state: "idle" } });
 }

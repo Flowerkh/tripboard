@@ -1,3 +1,4 @@
+import { Avatar, KakaoButton } from "../components/Account";
 import { Icon } from "../components/Icon";
 import { go } from "../components/ui";
 import { daysBetween, durLabel, fmtDay, today, untilLabel } from "../lib/dates";
@@ -43,7 +44,17 @@ export function Home() {
           <span className="eyebrow">{d.getMonth() + 1}월 {d.getDate()}일 {"일월화수목금토"[d.getDay()]}요일</span>
           <h1>내 여행</h1>
         </div>
-        <button type="button" className="icon-btn" aria-label="설정" onClick={() => go("/settings")}><Icon name="sliders" /></button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {s.user === null && <KakaoButton small label="로그인" />}
+          {s.user ? (
+            <button type="button" className="avatar-btn" aria-label={`${s.user.name} · 계정과 설정`} onClick={() => go("/settings")}>
+              <Avatar user={s.user} size={40} />
+              {s.sync.state === "error" && <i className="dot bad" aria-hidden="true" />}
+            </button>
+          ) : (
+            <button type="button" className="icon-btn" aria-label="설정" onClick={() => go("/settings")}><Icon name="sliders" /></button>
+          )}
+        </div>
       </header>
 
       <section className="sec">

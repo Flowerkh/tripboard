@@ -58,6 +58,24 @@ npm run build    # dist 폴더에 배포용 파일이 만들어져요
 - **위치 정보**: 장소 좌표는 AI가 아는 범위에서 넣어요. 틀릴 수 있으니 길찾기 링크는 장소 이름으로 검색해요.
 - **음성 입력**: 크롬 · 안드로이드 크롬에서만 마이크 버튼이 보여요.
 
+## 카카오 로그인 · 여러 기기에서 같은 여행 (Supabase Auth)
+
+로그인은 선택이에요. 안 해도 이 기기에서는 다 써요.
+
+- 홈 오른쪽 위 **로그인** 또는 설정 → 계정 → **카카오로 로그인**.
+- 로그인하면 여행이 계정(`user_trips` 테이블)에 저장되고, 같은 카카오 계정으로 로그인한 폰·PC에 같은 여행이 보여요. 이 기기에 있던 여행도 계정으로 옮겨져요.
+- 고치면 1~2초 뒤 올라가고, 다른 기기는 앱으로 돌아올 때·1분마다 받아와요. 두 곳에서 같은 여행을 고쳤으면 나중에 고친 쪽이 남아요.
+- 공유 링크도 계정에 같이 저장돼서, 어느 기기에서 고쳐도 받은 사람에게 반영돼요.
+- AI 대화 기록과 API 키는 기기마다 따로예요.
+- 로그아웃하면 이 기기에서 여행이 지워지고, 다시 로그인하면 돌아와요.
+- 각자 자기 여행만 읽고 쓸 수 있게 RLS로 막혀 있어요.
+
+설정 (한 번만)
+
+1. 카카오 개발자 사이트: 앱 만들기 → REST API 키에 리다이렉트 URI `https://ubmovsguvpqpdguwivst.supabase.co/auth/v1/callback`, 클라이언트 시크릿 켜기 → 카카오 로그인 ON → 동의항목 닉네임·프로필 사진.
+2. Supabase → Authentication → Sign In / Providers → Kakao: REST API 키, 클라이언트 시크릿, Allow users without an email ON.
+3. Supabase → Authentication → URL Configuration: Site URL `https://flowerkh.github.io/tripboard/`, Redirect URLs `https://flowerkh.github.io/tripboard/**` (로컬 테스트면 `http://localhost:5173/**`도).
+
 ## 일정 공유 (Supabase)
 
 여행 화면 위쪽 공유 버튼 → **공유 링크 만들기**.
@@ -105,10 +123,11 @@ src/
   lib/store.ts         저장(localStorage)과 되돌리기
   lib/ai/              Claude 호출, 일정 고치는 도구, 프롬프트, 데모 모드
   lib/links.ts         구글맵 · 카카오맵 · 네이버지도 링크
+  lib/cloud.ts         카카오 로그인 · 계정에 여행 저장/동기화
   lib/share.ts         공유 링크(Supabase) · 글로 보내기
   lib/shareSync.ts     공유 중인 여행 자동 반영
   lib/hscroll.ts       PC에서 가로 줄 마우스 스크롤
 server/                AI 프록시 예시 (앱 배포용)
-supabase/migrations/   공유용 DB 테이블·함수 SQL
+supabase/migrations/   DB 테이블·함수 SQL (공유 링크, 계정별 여행)
 .github/workflows/     GitHub Pages 자동 배포
 ```

@@ -5,6 +5,9 @@ import { loadSamples, resetAll, setSettings, toast, useApp } from "../lib/store"
 import type { ThemePref } from "../lib/types";
 import { checkKey, hasKey } from "../lib/ai/run";
 import { stopShareQuietly } from "../lib/share";
+import { logout, sync } from "../lib/cloud";
+import { Avatar, KakaoButton } from "../components/Account";
+import { ago } from "./ShareSheet";
 
 const MODELS: [string, string][] = [
   ["claude-sonnet-5-5", "Sonnet 5.5 · 추천"],
@@ -18,7 +21,8 @@ function Mini({ mode }: { mode: ThemePref }) {
 }
 
 export function Settings() {
-  const { settings, trips } = useApp();
+  const s = useApp();
+  const { settings, trips } = s;
   const [show, setShow] = useState(false);
   const [key, setKey] = useState(settings.apiKey);
   const [check, setCheck] = useState<{ state: "busy" | "ok" | "bad"; msg?: string } | null>(null);
@@ -28,6 +32,37 @@ export function Settings() {
         <button type="button" className="icon-btn" aria-label="뒤로" onClick={() => (history.length > 1 ? history.back() : go("/"))}><Icon name="back" /></button>
         <h1 style={{ fontSize: 24, letterSpacing: "-0.02em" }}>설정</h1>
       </header>
+
+      <section className="sec">
+        <h2>계정</h2>
+        {s.user ? (
+          <div className="card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Avatar user={s.user} size={44} />
+              <span style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
+                <b style={{ fontSize: 16 }}>{s.user.name}</b>
+                <span className="muted" style={{ fontSize: 13 }}>카카오 계정으로 로그인됨</span>
+              </span>
+            </div>
+            <p role="status" style={{ fontSize: 13, fontWeight: 700, color: s.sync.state === "error" ? "var(--bad)" : s.sync.state === "syncing" ? "var(--muted)" : "var(--good)" }}>
+              {s.sync.state === "error" ? `✕ 계정에 저장하지 못했어요: ${s.sync.error}`
+                : s.sync.state === "syncing" ? "계정과 맞추는 중…"
+                : `✓ 여행 ${s.trips.length}개가 계정에 저장돼 있어요${s.sync.at ? ` · ${ago(s.sync.at)}` : ""}`}
+            </p>
+            {s.sync.state === "error" && <button type="button" className="btn sm" style={{ alignSelf: "flex-start" }} onClick={() => sync()}>다시 시도</button>}
+            <p className="muted" style={{ fontSize: 12 }}>같은 카카오 계정으로 로그인하면 휴대폰·PC 어디서나 같은 여행이 보여요. AI 대화 기록은 기기마다 따로예요.</p>
+            <ConfirmButton className="btn sm" confirmText="한 번 더 누르면 로그아웃 · 이 기기에서 여행이 지워져요 (계정엔 남아요)" onConfirm={logout}>로그아웃</ConfirmButton>
+          </div>
+        ) : (
+          <div className="card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+            <KakaoButton />
+            <p className="muted" style={{ fontSize: 13 }}>
+              로그인하면 여행이 계정에 저장돼서 휴대폰·PC 어디서나 같은 여행을 보고 고칠 수 있어요.
+              {s.trips.length ? ` 지금 이 기기에 있는 여행 ${s.trips.length}개도 계정으로 옮겨져요.` : ""} 로그인하지 않아도 이 기기에서는 다 쓸 수 있어요.
+            </p>
+          </div>
+        )}
+      </section>
 
       <section className="sec">
         <h2>화면 모드</h2>
@@ -112,7 +147,7 @@ export function Settings() {
         <p className="muted" style={{ fontSize: 13 }}>여행은 이 기기의 브라우저에만 저장돼요. 다른 기기와 같이 보는 기능은 앱 단계에서 서버를 붙이면 생겨요.</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <button type="button" className="btn" onClick={loadSamples}>샘플 여행 넣기</button>
-          <ConfirmButton className="btn danger" confirmText="한 번 더 누르면 삭제" onConfirm={() => { trips.forEach(stopShareQuietly); resetAll(); toast("모든 여행을 지웠어요"); go("/"); }}>모든 여행 지우기</ConfirmButton>
+          <ConfirmButton className="btn danger" confirmText={s.user ? "한 번 더 누르면 계정에서도 삭제" : "한 번 더 누르면 삭제"} onConfirm={() => { trips.forEach(stopShareQuietly); resetAll(); toast("모든 여행을 지웠어요"); go("/"); }}>모든 여행 지우기</ConfirmButton>
         </div>
       </section>
     </main>

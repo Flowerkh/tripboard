@@ -6,4 +6,8 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: "./",
   plugins: [react()],
+  build: {
+    // libraries in their own files so the browser keeps them cached between app updates
+    rollupOptions: { output: { manualChunks: { react: ["react", "react-dom"], leaflet: ["leaflet"], supabase: ["@supabase/supabase-js"] } } },
+  },
 });
