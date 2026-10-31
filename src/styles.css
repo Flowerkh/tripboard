@@ -365,3 +365,5 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.5; resize: non
 .avatar-btn { position: relative; border: 0; padding: 0; background: none; border-radius: 50%; cursor: pointer; }
 .avatar-btn .dot { position: absolute; right: 0; top: 0; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bg); }
 .avatar-btn .dot.bad { background: var(--bad); }
+.geo-chip { display: inline-flex; align-items: center; gap: 6px; }
+.geo-chip:disabled { opacity: 0.85; cursor: progress; }

@@ -1,5 +1,5 @@
 import { addChat, commitDraft, getState, setPending, setState, snapshot, toast, type Draft } from "../store";
-import { contextBlock, DAY_PROMPT, FLIGHT_PROMPT, PLAN_PROMPT, RECS_PROMPT, RULES } from "./prompts";
+import { contextBlock, DAY_PROMPT, FLIGHT_PROMPT, GEO_PROMPT, PLAN_PROMPT, RECS_PROMPT, RULES } from "./prompts";
 import { makeExecutors, TOOL_DEFS } from "./tools";
 import { AiError, readTicket, runAgent, testConn, type Msg } from "./claude";
 import { demoChat, demoPlan, demoRecsRun } from "./demo";
@@ -30,9 +30,9 @@ function history(tripId: string, text: string): Msg[] {
   return msgs;
 }
 
-type Mode = { kind: "plan" } | { kind: "day"; day: string } | { kind: "recs" } | { kind: "chat"; text: string; viewingDay: string };
+type Mode = { kind: "plan" } | { kind: "day"; day: string } | { kind: "recs" } | { kind: "geo" } | { kind: "chat"; text: string; viewingDay: string };
 
-const SHOWN: Record<string, string> = { plan: "전체 일정을 짜줘", recs: "계절 추천 다시 받기" };
+const SHOWN: Record<string, string> = { plan: "전체 일정을 짜줘", recs: "계절 추천 다시 받기", geo: "위치 미정인 곳을 지도에 표시해줘" };
 
 /** One AI turn: works on a copy of the trip, then applies it (or waits for approval). */
 export async function runAi(tripId: string, mode: Mode): Promise<void> {
@@ -59,7 +59,7 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
   const signal = ctl.signal;
   const shown = mode.kind === "chat" ? mode.text : mode.kind === "day" ? `${mode.day} 일정을 짜줘` : SHOWN[mode.kind];
   addChat(tripId, { role: "user", text: shown });
-  setState({ run: { tripId, kind: mode.kind === "plan" ? "plan" : mode.kind === "recs" ? "recs" : "chat", status: "생각하는 중…", startedAt: Date.now(), stage: 0 } });
+  setState({ run: { tripId, kind: mode.kind === "plan" ? "plan" : mode.kind === "recs" ? "recs" : mode.kind === "geo" ? "geo" : "chat", status: mode.kind === "geo" ? "위치 찾는 중…" : "생각하는 중…", startedAt: Date.now(), stage: 0 } });
   const onStage = (name: string) =>
     setState((st) => (st.run ? { run: { ...st.run, stage: Math.max(st.run.stage, name === "update_trip" ? 1 : 2), status: name === "add_items" ? "일정 넣는 중…" : "여행 정보 정리 중…" } } : {}));
 
@@ -67,17 +67,18 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
   const usedDemo = !hasKey();
   try {
     if (usedDemo) {
+      if (mode.kind === "geo") throw new AiError("위치 찾기는 API 키가 있어야 해요. 설정에서 넣어 주세요.");
       if (mode.kind === "plan" || mode.kind === "day") text = await demoPlan(draft, changes, onStage, signal);
       else if (mode.kind === "recs") text = await demoRecsRun(draft, changes, signal);
       else text = await demoChat(draft, changes, mode.text, mode.viewingDay, signal);
     } else {
       const { settings } = getState();
       const bigJob = mode.kind === "plan" || mode.kind === "day";
-      const prompt = mode.kind === "plan" ? PLAN_PROMPT : mode.kind === "day" ? DAY_PROMPT(mode.day) : mode.kind === "recs" ? RECS_PROMPT : "";
+      const prompt = mode.kind === "plan" ? PLAN_PROMPT : mode.kind === "day" ? DAY_PROMPT(mode.day) : mode.kind === "recs" ? RECS_PROMPT : mode.kind === "geo" ? GEO_PROMPT : "";
       const messages: Msg[] = mode.kind === "chat" ? history(tripId, mode.text) : [{ role: "user", content: prompt }];
       text = await runAgent({
         conn: { apiKey: settings.apiKey, proxyUrl: settings.proxyUrl },
-        model: bigJob || mode.kind === "recs" ? settings.planModel : settings.editModel,
+        model: bigJob || mode.kind === "recs" || mode.kind === "geo" ? settings.planModel : settings.editModel,
         system: RULES,
         context: contextBlock(draft.trip, draft.items, mode.kind === "chat" ? mode.viewingDay : undefined),
         messages,
@@ -91,6 +92,7 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
     const aborted = (e as Error).name === "AbortError";
     const msg = aborted ? "멈췄어요. 바뀐 건 없어요." : e instanceof AiError ? e.message : `문제가 생겼어요: ${(e as Error).message}`;
     addChat(tripId, { role: "assistant", text: msg });
+    if (mode.kind === "geo" && !aborted) toast(msg); // no chat sheet is open for this one
     ctl = null;
     if (!aborted && mode.kind === "plan") setState((st) => ({ run: st.run ? { ...st.run, error: msg } : null }));
     else setState({ run: null });
@@ -107,6 +109,7 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
   }
   setState({ run: null });
   if (mode.kind === "plan") toast(usedDemo ? "데모 일정이에요 · 설정에서 API 키를 저장하면 실제 장소로 짜요" : "일정을 다 짰어요");
+  if (mode.kind === "geo") toast(changes.length ? `${changes.length}곳을 지도에 표시했어요 · 대화에서 되돌릴 수 있어요` : "지도에 더 표시할 수 있는 곳을 찾지 못했어요");
 }
 
 /** Deterministic "push everything back" without calling the AI. */

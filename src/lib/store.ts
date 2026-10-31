@@ -9,7 +9,7 @@ export interface Draft { trip: Trip; items: Item[] }
 export interface Pending { draft: Draft; before: Draft; changes: string[]; msgId: string }
 export interface Run {
   tripId: string;
-  kind: "plan" | "chat" | "recs" | "flights";
+  kind: "plan" | "chat" | "recs" | "flights" | "geo";
   status: string;
   startedAt: number;
   stage: number; // plan progress: 0 thinking, 1 trip info saved, 2 items added

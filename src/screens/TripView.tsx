@@ -3,10 +3,10 @@ import { Icon } from "../components/Icon";
 import { fallbackView, MapView, type Pin } from "../components/MapView";
 import { ItemRow, LegRow } from "../components/Timeline";
 import { AskBar, go } from "../components/ui";
-import { runAi } from "../lib/ai/run";
+import { hasKey, runAi } from "../lib/ai/run";
 import { daysBetween, durLabel, fmtDay, nowMin, today, toMin } from "../lib/dates";
 import { dayRouteLinks, providerFor, providerName } from "../lib/links";
-import { useApp } from "../lib/store";
+import { toast, useApp } from "../lib/store";
 import { hasGeo, itemsOfDay, legsOn, nowInfo, phase, tripDays, tripEnd } from "../lib/trip";
 import { Generating } from "./Generating";
 import { ShareSheet } from "./ShareSheet";
@@ -48,6 +48,7 @@ export function TripView({ id }: { id: string }) {
   const dayIdx = days.indexOf(day);
   const list = itemsOfDay(items, day);
   const geo = list.filter(hasGeo);
+  const unplaced = list.filter((it) => !hasGeo(it) && it.place.trim()).length;
   const num = new Map(geo.map((g, i) => [g.id, i + 1]));
   const provider = providerFor(trip, s.settings);
   const routes = dayRouteLinks(provider, list, trip);
@@ -108,7 +109,13 @@ export function TripView({ id }: { id: string }) {
 
       <section className="map-card" aria-label={`${dayIdx + 1}일차 지도`}>
         <MapView pins={pins} selectedId={sel} onPin={(pid) => { setSel(pid); document.getElementById(`it-${pid}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); }} fallback={fallbackView(trip.country)} className={bigMap ? "big" : ""} label={`${dayIdx + 1}일차 동선 지도`} />
-        {!geo.length && <div className="map-empty"><span><Icon name="pin" size={16} />장소를 넣으면 여기에 동선이 그려져요</span></div>}
+        {!geo.length && <div className="map-empty"><span><Icon name="pin" size={16} />{unplaced ? "아직 지도에 표시된 곳이 없어요" : "장소를 넣으면 여기에 동선이 그려져요"}</span></div>}
+        {unplaced > 0 && (
+          <button type="button" className="float-chip map-over geo-chip" style={{ left: 10, top: 10 }} disabled={!!s.run}
+            onClick={() => (hasKey() ? runAi(id, { kind: "geo" }) : (toast("위치 찾기는 API 키가 있어야 해요"), go("/settings")))}>
+            <Icon name="pin" size={14} />{s.run?.kind === "geo" ? "위치 찾는 중…" : `위치 미정 ${unplaced}곳 지도에 표시`}
+          </button>
+        )}
         <button type="button" className="icon-btn flat map-over" style={{ top: 10, right: 10, width: 36, height: 36 }} aria-label={bigMap ? "지도 작게" : "지도 크게"} onClick={() => setBigMap(!bigMap)}><Icon name="expand" size={18} /></button>
         {routes[0] && <a className="float-chip map-over" style={{ left: 10, bottom: 10 }} href={routes[0]} target="_blank" rel="noopener noreferrer">{providerName(provider)}으로 동선 보기 ↗</a>}
       </section>
