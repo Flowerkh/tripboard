@@ -96,12 +96,12 @@ export function ConfirmButton({ className, children, confirmText, onConfirm }: {
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (!armed) return;
-    const t = setTimeout(() => setArmed(false), 4000);
+    const t = setTimeout(() => setArmed(false), 8000);
     return () => clearTimeout(t);
   }, [armed]);
   return (
-    <button type="button" className={className} onClick={() => (armed ? onConfirm() : setArmed(true))}>
-      {armed ? confirmText : children}
+    <button type="button" className={`${className ?? ""}${armed ? " armed" : ""}`} aria-live="polite" onClick={() => (armed ? onConfirm() : setArmed(true))}>
+      {armed ? <><b aria-hidden="true">👆</b>{confirmText}</> : children}
     </button>
   );
 }

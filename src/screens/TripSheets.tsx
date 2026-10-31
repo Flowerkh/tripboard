@@ -232,19 +232,25 @@ export function RecsSheet({ trip, onClose, onAdd }: { trip: Trip; onClose: () =>
 }
 
 export function TripMenu({ trip, onClose }: { trip: Trip; onClose: () => void }) {
-  const s = useApp();
+  useApp(); // re-render when the key changes
   return (
     <Sheet onClose={onClose} label="여행 설정">
       <div className="sheet-head"><b style={{ flex: 1 }}>여행 설정</b><button type="button" className="icon-btn" aria-label="닫기" onClick={onClose}><Icon name="close" size={18} /></button></div>
       <div className="sheet-body">
         <button type="button" className="btn" style={{ justifyContent: "flex-start" }} onClick={() => { onClose(); go(`/edit/${trip.id}`); }}><Icon name="edit" size={18} />여행 정보 고치기 (날짜·이동편·취향)</button>
+        {!hasKey() && (
+          <div className="card" style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, background: "var(--warn-soft)", borderColor: "transparent" }}>
+            <b style={{ fontSize: 14 }}>지금은 데모 모드예요</b>
+            <p style={{ fontSize: 13 }}>API 키가 저장돼 있지 않아서 다시 짜도 장소 없는 데모 틀만 나와요.</p>
+            <button type="button" className="btn sm" style={{ alignSelf: "flex-start" }} onClick={() => { onClose(); go("/settings"); }}><Icon name="key" size={15} />API 키 넣으러 가기</button>
+          </div>
+        )}
         <ConfirmButton className="btn" confirmText="한 번 더 누르면 지금 일정을 지우고 새로 짜요" onConfirm={() => { onClose(); runAi(trip.id, { kind: "plan" }); }}>
-          <Icon name="sparkle" size={18} />AI로 처음부터 다시 짜기
+          <Icon name="sparkle" size={18} />{hasKey() ? "AI로 처음부터 다시 짜기" : "데모로 다시 짜기"}
         </ConfirmButton>
         <ConfirmButton className="btn danger" confirmText="한 번 더 누르면 삭제돼요" onConfirm={() => { onClose(); deleteTrip(trip.id); go("/"); }}>
           <Icon name="trash" size={18} />이 여행 삭제
         </ConfirmButton>
-        {!hasKey() && s.trips.length > 0 && <p className="muted" style={{ fontSize: 13 }}>지금은 데모 모드라 AI가 장소 없이 일정 틀만 만들어요. 설정에서 API 키를 넣으면 실제 장소로 짜요.</p>}
       </div>
     </Sheet>
   );

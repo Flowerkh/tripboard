@@ -61,7 +61,6 @@ export function contextBlock(t: Trip, items: Item[], viewingDay?: string): strin
 }
 
 export const PLAN_PROMPT = `[요청] 위 여행 정보로 전체 일정을 짜줘.
-- 기존 일정이 있으면 먼저 delete_items로 모두 지워.
 - update_trip 한 번으로 title(짧게, 예: "오사카 2박 3일"), season(그 나라·날짜 기준 계절, 예: "늦가을"), dayLabels(날짜마다 지역·테마 2~3개를 " · "로), notice(출발 전 꼭 확인할 것 1~2문장), recommendations(이 시기·계절에 특히 좋은 곳이나 할 것 5~7개, why에 계절 이유를 1~2문장)를 설정해.
 - 같은 차례에 add_items 한 번으로 모든 날의 일정을 넣어. 하루 5~9개, 식사 포함, 가까운 곳끼리 이어지게, 페이스를 반영해.
 - 계절 추천 가운데 동선에 맞는 것은 실제 일정에도 넣어.

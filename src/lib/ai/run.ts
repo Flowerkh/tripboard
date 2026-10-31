@@ -1,7 +1,7 @@
 import { addChat, commitDraft, getState, setPending, setState, snapshot, toast, type Draft } from "../store";
 import { contextBlock, DAY_PROMPT, FLIGHT_PROMPT, PLAN_PROMPT, RECS_PROMPT, RULES } from "./prompts";
 import { makeExecutors, TOOL_DEFS } from "./tools";
-import { AiError, readTicket, runAgent, type Msg } from "./claude";
+import { AiError, readTicket, runAgent, testConn, type Msg } from "./claude";
 import { demoChat, demoPlan, demoRecsRun } from "./demo";
 
 let ctl: AbortController | null = null;
@@ -37,11 +37,24 @@ const SHOWN: Record<string, string> = { plan: "전체 일정을 짜줘", recs: "
 /** One AI turn: works on a copy of the trip, then applies it (or waits for approval). */
 export async function runAi(tripId: string, mode: Mode): Promise<void> {
   const s = getState();
-  if (s.run) return;
+  if (s.run?.error) setState({ run: null }); // a failed run left on screen shouldn't block a new one
+  else if (s.run) {
+    toast("AI가 아직 다른 일을 하고 있어요. 끝난 뒤에 다시 해 주세요.");
+    return;
+  }
   const before = snapshot(tripId);
   if (!before.trip) return;
   const draft: Draft = structuredClone(before);
   const changes: string[] = [];
+  if (mode.kind === "plan" && draft.items.length) {
+    // "Start over" clears the old plan here instead of asking the AI to delete it item by item.
+    changes.push(`- 기존 일정 ${draft.items.length}개`);
+    draft.items = [];
+  }
+  if (mode.kind === "plan" && hasKey()) {
+    // Drop leftovers from an earlier demo plan; the AI writes fresh ones.
+    draft.trip = { ...draft.trip, notice: "", dayLabels: {} };
+  }
   ctl = new AbortController();
   const signal = ctl.signal;
   const shown = mode.kind === "chat" ? mode.text : mode.kind === "day" ? `${mode.day} 일정을 짜줘` : SHOWN[mode.kind];
@@ -51,8 +64,9 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
     setState((st) => (st.run ? { run: { ...st.run, stage: Math.max(st.run.stage, name === "update_trip" ? 1 : 2), status: name === "add_items" ? "일정 넣는 중…" : "여행 정보 정리 중…" } } : {}));
 
   let text = "";
+  const usedDemo = !hasKey();
   try {
-    if (!hasKey()) {
+    if (usedDemo) {
       if (mode.kind === "plan" || mode.kind === "day") text = await demoPlan(draft, changes, onStage, signal);
       else if (mode.kind === "recs") text = await demoRecsRun(draft, changes, signal);
       else text = await demoChat(draft, changes, mode.text, mode.viewingDay, signal);
@@ -92,7 +106,7 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
     else commitDraft(tripId, draft, before, msgId);
   }
   setState({ run: null });
-  if (mode.kind === "plan") toast("일정을 다 짰어요");
+  if (mode.kind === "plan") toast(usedDemo ? "데모 일정이에요 · 설정에서 API 키를 저장하면 실제 장소로 짜요" : "일정을 다 짰어요");
 }
 
 /** Deterministic "push everything back" without calling the AI. */
@@ -124,6 +138,18 @@ export function discardPending(tripId: string) {
 }
 export function clearRunError() {
   setState({ run: null });
+}
+
+/** Settings "키 확인": returns null when the key works, or a message saying what's wrong. */
+export async function checkKey(): Promise<string | null> {
+  const { settings } = getState();
+  if (!hasKey()) return "키가 비어 있어요.";
+  try {
+    await testConn({ apiKey: settings.apiKey, proxyUrl: settings.proxyUrl });
+    return null;
+  } catch (e) {
+    return e instanceof AiError ? e.message : (e as Error).message;
+  }
 }
 
 export async function readFlights(file: File) {

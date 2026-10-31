@@ -3,6 +3,7 @@ import { Icon } from "../components/Icon";
 import { ConfirmButton, go, Switch } from "../components/ui";
 import { loadSamples, resetAll, setSettings, toast, useApp } from "../lib/store";
 import type { ThemePref } from "../lib/types";
+import { checkKey, hasKey } from "../lib/ai/run";
 
 const MODELS: [string, string][] = [
   ["claude-sonnet-5-5", "Sonnet 5.5 · 추천"],
@@ -19,6 +20,7 @@ export function Settings() {
   const { settings } = useApp();
   const [show, setShow] = useState(false);
   const [key, setKey] = useState(settings.apiKey);
+  const [check, setCheck] = useState<{ state: "busy" | "ok" | "bad"; msg?: string } | null>(null);
   return (
     <main className="screen">
       <header style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -58,16 +60,25 @@ export function Settings() {
         <div className="card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
           <label className="label" htmlFor="api-key" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="key" size={15} />Claude API 키</label>
           <div style={{ display: "flex", gap: 8 }}>
-            <input id="api-key" className="input mono" type={show ? "text" : "password"} value={key} placeholder="sk-ant-..." autoComplete="off" spellCheck={false} onChange={(e) => setKey(e.target.value)} style={{ fontSize: 14 }} />
+            <input id="api-key" className="input mono" type={show ? "text" : "password"} value={key} placeholder="sk-ant-..." autoComplete="off" spellCheck={false}
+              onChange={(e) => { setKey(e.target.value); setSettings({ apiKey: e.target.value.trim() }); setCheck(null); }} style={{ fontSize: 14 }} />
             <button type="button" className="btn" onClick={() => setShow(!show)}>{show ? "숨기기" : "보기"}</button>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn primary" style={{ flex: 1 }} onClick={() => { setSettings({ apiKey: key.trim() }); toast(key.trim() ? "API 키를 저장했어요" : "API 키를 지웠어요 · 데모 모드"); }}>저장</button>
-            {settings.apiKey && <button type="button" className="btn" onClick={() => { setKey(""); setSettings({ apiKey: "" }); toast("API 키를 지웠어요 · 데모 모드"); }}>지우기</button>}
+            <button type="button" className="btn primary" style={{ flex: 1 }} disabled={!hasKey() || check?.state === "busy"}
+              onClick={async () => { setCheck({ state: "busy" }); const err = await checkKey(); setCheck(err ? { state: "bad", msg: err } : { state: "ok" }); }}>
+              {check?.state === "busy" ? "확인하는 중…" : "키 확인"}
+            </button>
+            {settings.apiKey && <button type="button" className="btn" onClick={() => { setKey(""); setSettings({ apiKey: "" }); setCheck(null); toast("API 키를 지웠어요 · 데모 모드"); }}>지우기</button>}
           </div>
+          <p role="status" style={{ fontSize: 13, fontWeight: 700, color: check?.state === "ok" ? "var(--good)" : check?.state === "bad" ? "var(--bad)" : settings.apiKey ? "var(--ink)" : "var(--warn)" }}>
+            {check?.state === "ok" ? "✓ 키가 잘 돼요. 이제 AI가 실제 장소로 일정을 짜요."
+              : check?.state === "bad" ? `✕ ${check.msg}`
+              : settings.apiKey ? `저장된 키 ···${settings.apiKey.slice(-4)} · '키 확인'으로 잘 되는지 볼 수 있어요.`
+              : "지금은 데모 모드예요. 키를 붙여 넣으면 바로 저장돼요."}
+          </p>
           <p className="muted" style={{ fontSize: 12 }}>
-            {settings.apiKey ? "키가 있어요. AI가 진짜로 일정을 짜고 고쳐요." : "키가 없으면 데모 모드예요. 화면은 다 써 볼 수 있지만 AI는 간단한 말만 알아들어요."}{" "}
-            키는 이 브라우저에만 저장되고 Claude API로만 보내져요. 여러 사람이 쓰는 기기에서는 넣지 마세요. 키는 <a href="https://platform.claude.com" target="_blank" rel="noopener noreferrer">Claude 콘솔</a>에서 만들어요.
+            키는 이 브라우저에만 저장되고 Claude API로만 보내져요. 여러 사람이 쓰는 기기에서는 넣지 마세요. 키는 <a href="https://platform.claude.com" target="_blank" rel="noopener noreferrer">Claude 콘솔</a>에서 만들어요. 키 확인은 아주 작은 요청 한 번이라 비용이 거의 없어요.
           </p>
         </div>
         <div className="card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>

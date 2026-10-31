@@ -31,13 +31,21 @@ function explain(status: number, body: string): string {
 /** Either a personal key (testing in the browser) or your own server that holds the key. */
 export interface Conn { apiKey: string; proxyUrl: string }
 
-async function call(conn: Conn, body: Record<string, unknown>, signal?: AbortSignal) {
+/** Stops a request that hangs, so the app never waits forever. */
+function withTimeout(signal: AbortSignal | undefined, ms: number): AbortSignal | undefined {
+  const any = (AbortSignal as unknown as { any?: (s: AbortSignal[]) => AbortSignal }).any;
+  if (typeof AbortSignal.timeout !== "function" || !any) return signal;
+  const t = AbortSignal.timeout(ms);
+  return signal ? any([signal, t]) : t;
+}
+
+async function call(conn: Conn, body: Record<string, unknown>, signal?: AbortSignal, timeoutMs = 300_000) {
   let res: Response;
   const viaProxy = !!conn.proxyUrl.trim();
   try {
     res = await fetch(viaProxy ? conn.proxyUrl.trim() : API, {
       method: "POST",
-      signal,
+      signal: withTimeout(signal, timeoutMs),
       headers: viaProxy
         ? { "content-type": "application/json" }
         : {
@@ -49,8 +57,9 @@ async function call(conn: Conn, body: Record<string, unknown>, signal?: AbortSig
       body: JSON.stringify(body),
     });
   } catch (e) {
-    if ((e as Error).name === "AbortError") throw e;
-    throw new AiError("인터넷 연결을 확인해 주세요.");
+    if ((e as Error).name === "AbortError" && signal?.aborted) throw e;
+    if ((e as Error).name === "TimeoutError" || (e as Error).name === "AbortError") throw new AiError("응답이 너무 오래 걸려서 멈췄어요. 다시 해 보세요.");
+    throw new AiError("Claude에 연결하지 못했어요. 인터넷 연결이나 AI 서버 주소를 확인해 주세요.");
   }
   const text = await res.text();
   if (!res.ok) throw new AiError(explain(res.status, text));
@@ -97,6 +106,11 @@ export async function runAgent(o: AgentOpts): Promise<string> {
     msgs.push({ role: "user", content: results });
   }
   return texts[texts.length - 1] ?? "";
+}
+
+/** Smallest possible request (fractions of a cent) to check the key, credits and connection. */
+export async function testConn(conn: Conn): Promise<void> {
+  await call(conn, { model: "claude-haiku-5-5", max_tokens: 1, messages: [{ role: "user", content: "hi" }] }, undefined, 30_000);
 }
 
 /** Reads flight details from an e-ticket screenshot. */
