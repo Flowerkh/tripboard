@@ -1,0 +1,192 @@
+import { useSyncExternalStore } from "react";
+import { uid } from "./dates";
+import { buildSamples } from "./sample";
+import type { ChatMsg, Item, Settings, Trip } from "./types";
+
+const KEY = "tripboard:v1";
+
+export interface Draft { trip: Trip; items: Item[] }
+export interface Pending { draft: Draft; before: Draft; changes: string[]; msgId: string }
+export interface Run {
+  tripId: string;
+  kind: "plan" | "chat" | "recs" | "flights";
+  status: string;
+  startedAt: number;
+  stage: number; // plan progress: 0 thinking, 1 trip info saved, 2 items added
+  error?: string;
+}
+
+export interface State {
+  trips: Trip[];
+  items: Item[];
+  chats: Record<string, ChatMsg[]>;
+  settings: Settings;
+  undo: Record<string, { msgId: string; before: Draft }>;
+  pending: Record<string, Pending>;
+  run: Run | null;
+  toast: string | null;
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+  theme: "system",
+  domesticMap: "kakao",
+  apiKey: "",
+  proxyUrl: "",
+  planModel: "claude-sonnet-5-5",
+  editModel: "claude-sonnet-5-5",
+  confirmAI: false,
+};
+
+function load(): State {
+  let saved: Partial<State> = {};
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) saved = JSON.parse(raw);
+  } catch {
+    /* storage can be unavailable; start fresh */
+  }
+  return {
+    trips: saved.trips ?? [],
+    items: saved.items ?? [],
+    chats: saved.chats ?? {},
+    settings: { ...DEFAULT_SETTINGS, ...(saved.settings ?? {}) },
+    undo: {},
+    pending: {},
+    run: null,
+    toast: null,
+  };
+}
+
+let state: State = load();
+const subs = new Set<() => void>();
+let saveTimer = 0;
+
+function persist() {
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    try {
+      const { trips, items, chats, settings } = state;
+      localStorage.setItem(KEY, JSON.stringify({ trips, items, chats, settings }));
+    } catch {
+      /* quota or private mode: keep working in memory */
+    }
+  }, 150);
+}
+
+export function getState(): State {
+  return state;
+}
+export function setState(patch: Partial<State> | ((s: State) => Partial<State>)) {
+  const p = typeof patch === "function" ? patch(state) : patch;
+  state = { ...state, ...p };
+  persist();
+  subs.forEach((f) => f());
+}
+export function subscribe(fn: () => void) {
+  subs.add(fn);
+  return () => subs.delete(fn);
+}
+export function useApp(): State {
+  return useSyncExternalStore(subscribe, getState, getState);
+}
+
+/* ---------- actions ---------- */
+let toastTimer = 0;
+export function toast(msg: string) {
+  setState({ toast: msg });
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => setState({ toast: null }), 3000);
+}
+
+export function createTrip(t: Omit<Trip, "id" | "createdAt">): string {
+  const id = uid("t");
+  setState((s) => ({ trips: [...s.trips, { ...t, id, createdAt: Date.now() }] }));
+  return id;
+}
+export function updateTrip(id: string, patch: Partial<Trip>) {
+  setState((s) => ({ trips: s.trips.map((t) => (t.id === id ? { ...t, ...patch } : t)) }));
+}
+export function deleteTrip(id: string) {
+  setState((s) => {
+    const chats = { ...s.chats };
+    delete chats[id];
+    return { trips: s.trips.filter((t) => t.id !== id), items: s.items.filter((i) => i.tripId !== id), chats };
+  });
+}
+export function upsertItem(item: Item) {
+  setState((s) => {
+    const exists = s.items.some((i) => i.id === item.id);
+    return { items: exists ? s.items.map((i) => (i.id === item.id ? item : i)) : [...s.items, item] };
+  });
+}
+export function deleteItem(id: string) {
+  setState((s) => ({ items: s.items.filter((i) => i.id !== id) }));
+}
+export function toggleDone(id: string) {
+  setState((s) => ({ items: s.items.map((i) => (i.id === id ? { ...i, done: !i.done } : i)) }));
+}
+export function addChat(tripId: string, msg: Omit<ChatMsg, "id" | "at">): string {
+  const id = uid("m");
+  setState((s) => {
+    const list = [...(s.chats[tripId] ?? []), { ...msg, id, at: Date.now() }].slice(-80);
+    return { chats: { ...s.chats, [tripId]: list } };
+  });
+  return id;
+}
+export function snapshot(tripId: string): Draft {
+  const s = getState();
+  const trip = s.trips.find((t) => t.id === tripId)!;
+  return { trip: structuredClone(trip), items: structuredClone(s.items.filter((i) => i.tripId === tripId)) };
+}
+/** Replace a trip and its items with a draft, remembering what was there for undo. */
+export function commitDraft(tripId: string, draft: Draft, before: Draft, msgId: string) {
+  setState((s) => ({
+    trips: s.trips.map((t) => (t.id === tripId ? draft.trip : t)),
+    items: [...s.items.filter((i) => i.tripId !== tripId), ...draft.items],
+    undo: { ...s.undo, [tripId]: { msgId, before } },
+  }));
+}
+export function undoLast(tripId: string) {
+  const u = getState().undo[tripId];
+  if (!u) return;
+  setState((s) => {
+    const undo = { ...s.undo };
+    delete undo[tripId];
+    return {
+      trips: s.trips.map((t) => (t.id === tripId ? u.before.trip : t)),
+      items: [...s.items.filter((i) => i.tripId !== tripId), ...u.before.items],
+      undo,
+    };
+  });
+  addChat(tripId, { role: "note", text: "방금 AI가 바꾼 내용을 되돌렸어요." });
+  toast("되돌렸어요");
+}
+export function setPending(tripId: string, p: Pending | null) {
+  setState((s) => {
+    const pending = { ...s.pending };
+    if (p) pending[tripId] = p;
+    else delete pending[tripId];
+    return { pending };
+  });
+}
+export function setSettings(patch: Partial<Settings>) {
+  setState((s) => ({ settings: { ...s.settings, ...patch } }));
+}
+export function loadSamples() {
+  const { trips, items } = buildSamples();
+  setState((s) => ({
+    trips: [...s.trips.filter((t) => !trips.some((x) => x.id === t.id)), ...trips],
+    items: [...s.items.filter((i) => !trips.some((x) => x.id === i.tripId)), ...items],
+  }));
+  toast("샘플 여행 2개를 넣었어요");
+}
+export function resetAll() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* ignore */
+  }
+  state = { ...load(), settings: { ...DEFAULT_SETTINGS, apiKey: state.settings.apiKey } };
+  persist();
+  subs.forEach((f) => f());
+}

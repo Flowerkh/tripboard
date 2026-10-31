@@ -1,0 +1,9 @@
+{
+  "name": "트립보드",
+  "short_name": "트립보드",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f9",
+  "theme_color": "#142037",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
