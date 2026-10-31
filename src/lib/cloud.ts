@@ -30,9 +30,23 @@ const PULL_EVERY = 60_000;
 function account(u: User | null | undefined): Account | null {
   if (!u) return null;
   const m = (u.user_metadata ?? {}) as Record<string, string>;
-  const name = m.full_name || m.name || m.nickname || m.preferred_username || m.user_name || "카카오 사용자";
+  // display_name is the name chosen in the app; it wins over Kakao's nickname
+  const name = (m.display_name || m.full_name || m.name || m.nickname || m.preferred_username || m.user_name || "").trim();
   const avatar = (m.avatar_url || m.picture || "").replace(/^http:\/\//, "https://");
-  return { id: u.id, name, avatar };
+  return { id: u.id, name: name || "카카오 사용자", avatar, named: !!name };
+}
+
+export const NAME_MAX = 20;
+
+/** Saves the name shown in the app to the account, so every device shows it. */
+export async function setDisplayName(raw: string): Promise<string | null> {
+  const name = raw.replace(/\s+/g, " ").trim();
+  if (!name) return "이름을 한 글자 이상 넣어 주세요.";
+  if ([...name].length > NAME_MAX) return `이름은 ${NAME_MAX}자까지 쓸 수 있어요.`;
+  const { data, error } = await supabase.auth.updateUser({ data: { display_name: name } });
+  if (error) return /fetch|network/i.test(error.message) ? "인터넷 연결을 확인해 주세요." : `이름을 바꾸지 못했어요: ${error.message}`;
+  setState({ user: account(data.user) });
+  return null;
 }
 
 export async function loginWithKakao() {
@@ -63,10 +77,12 @@ function readRedirectError() {
   setTimeout(() => toast(`로그인하지 못했어요: ${err}`), 300);
 }
 
-function restoreRoute() {
+/** True right after coming back from the Kakao login page (set just before leaving). */
+function restoreRoute(): boolean {
   let to: string | null = null;
   try { to = sessionStorage.getItem(RETURN_KEY); sessionStorage.removeItem(RETURN_KEY); } catch { /* ignore */ }
   if (to && to !== location.hash) location.hash = to;
+  return to !== null;
 }
 
 export function installCloud() {
@@ -74,10 +90,10 @@ export function installCloud() {
   supabase.auth.onAuthStateChange((event, session) => {
     const user = account(session?.user);
     const prev = getState().user;
-    if (prev?.id !== user?.id || prev === undefined) setState({ user });
-    if (event === "SIGNED_IN" && user && prev?.id !== user.id) {
-      restoreRoute();
-      toast(`${user.name}님, 반가워요`);
+    if (prev === undefined || prev?.id !== user?.id || prev?.name !== user?.name || prev?.avatar !== user?.avatar) setState({ user });
+    // the library also reports SIGNED_IN when a saved session loads; greet only after a real login
+    if (event === "SIGNED_IN" && user && restoreRoute()) {
+      toast(user.named ? `${user.name}님, 반가워요` : "반가워요! 설정에서 쓸 이름을 정해 주세요");
     }
     if (user) setTimeout(() => sync(), 0);
   });

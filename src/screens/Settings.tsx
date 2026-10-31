@@ -6,7 +6,7 @@ import type { ThemePref } from "../lib/types";
 import { checkKey, hasKey } from "../lib/ai/run";
 import { stopShareQuietly } from "../lib/share";
 import { logout, sync } from "../lib/cloud";
-import { Avatar, KakaoButton } from "../components/Account";
+import { Avatar, KakaoButton, NameEditor } from "../components/Account";
 import { ago } from "./ShareSheet";
 
 const MODELS: [string, string][] = [
@@ -40,7 +40,7 @@ export function Settings() {
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <Avatar user={s.user} size={44} />
               <span style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
-                <b style={{ fontSize: 16 }}>{s.user.name}</b>
+                <NameEditor key={s.user.id} user={s.user} />
                 <span className="muted" style={{ fontSize: 13 }}>카카오 계정으로 로그인됨</span>
               </span>
             </div>

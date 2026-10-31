@@ -32,7 +32,13 @@ export interface State {
   sync: SyncStatus;
 }
 
-export interface Account { id: string; name: string; avatar: string }
+export interface Account {
+  id: string;
+  name: string;
+  avatar: string;
+  /** false when Kakao gave no nickname and none was set in the app ("카카오 사용자") */
+  named: boolean;
+}
 export interface CloudMeta {
   userId: string;
   /** fingerprint + server time of the version both sides agree on */

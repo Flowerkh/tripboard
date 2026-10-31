@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { loginWithKakao } from "../lib/cloud";
-import type { Account } from "../lib/store";
+import { loginWithKakao, NAME_MAX, setDisplayName } from "../lib/cloud";
+import { toast, type Account } from "../lib/store";
 
 /** Kakao login button (yellow, per Kakao's login button guide). */
 export function KakaoButton({ small, label = "카카오로 로그인" }: { small?: boolean; label?: string }) {
@@ -21,5 +21,47 @@ export function Avatar({ user, size = 40 }: { user: Account; size?: number }) {
     <img className="avatar" src={user.avatar} alt="" width={size} height={size} onError={() => setBroken(true)} referrerPolicy="no-referrer" />
   ) : (
     <span className="avatar" style={{ width: size, height: size, fontSize: size * 0.42 }} aria-hidden="true">{user.name.slice(0, 1)}</span>
+  );
+}
+
+/** Name shown in the app, editable. Opens by itself when Kakao gave no nickname. */
+export function NameEditor({ user }: { user: Account }) {
+  const [editing, setEditing] = useState(!user.named);
+  const [val, setVal] = useState(user.named ? user.name : "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  if (!editing) {
+    return (
+      <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        <b style={{ fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</b>
+        <button type="button" className="link-btn" style={{ fontSize: 13, flex: "none" }} onClick={() => { setVal(user.name); setErr(""); setEditing(true); }}>이름 바꾸기</button>
+      </span>
+    );
+  }
+  return (
+    <form
+      style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        const problem = await setDisplayName(val);
+        setBusy(false);
+        if (problem) return setErr(problem);
+        setErr("");
+        setEditing(false);
+        toast("이름을 바꿨어요");
+      }}
+    >
+      <label className="label" htmlFor="display-name">앱에서 쓸 이름</label>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input id="display-name" className="input" value={val} maxLength={NAME_MAX} placeholder="예: 경하" autoComplete="nickname" autoFocus={user.named}
+          onChange={(e) => { setVal(e.target.value); setErr(""); }} style={{ flex: 1, minWidth: 0 }} />
+        <button type="submit" className="btn primary" disabled={busy || !val.trim()}>{busy ? "저장 중…" : "저장"}</button>
+        {user.named && <button type="button" className="btn" onClick={() => setEditing(false)}>취소</button>}
+      </div>
+      {!user.named && !err && <p className="muted" style={{ fontSize: 12 }}>카카오 닉네임을 받지 않아서 지금은 '카카오 사용자'로 보여요. 정한 이름은 계정에 저장돼서 다른 기기에서도 같아요.</p>}
+      {err && <p role="alert" style={{ color: "var(--bad)", fontSize: 13, fontWeight: 700 }}>{err}</p>}
+    </form>
   );
 }
