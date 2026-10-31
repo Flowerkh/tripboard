@@ -27,6 +27,10 @@ export function TripView({ id }: { id: string }) {
   useEffect(() => {
     if (trip && !tripDays(trip).includes(day)) setDay(tripDays(trip)[0]);
   }, [trip, day]);
+  useEffect(() => {
+    // keep the chosen day tab in view when the row is wider than the screen
+    document.querySelector(".days .day-tab.on")?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, [day]);
 
   if (!trip) {
     return (

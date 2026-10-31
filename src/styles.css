@@ -211,6 +211,11 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.5; resize: non
 .map-empty span { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 14px; background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 600; box-shadow: var(--shadow); }
 .float-chip { height: 32px; padding: 0 11px; border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); border: 0; }
 .recs-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+/* Mouse users: sideways rows show a thin scrollbar and can be dragged (see lib/hscroll.ts). */
+@media (hover: hover) and (pointer: fine) {
+  .days, .recs-row, .chips.scroll { scrollbar-width: thin; scrollbar-color: var(--line) transparent; padding-bottom: 6px; cursor: grab; user-select: none; }
+}
+.dragging, .dragging * { cursor: grabbing !important; }
 .rec-chip { flex: none; min-height: 40px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
 .rec-chip em { font-style: normal; color: var(--accent-text); font-weight: 700; }
 .rec-chip.in { background: var(--good-soft); color: var(--good); border-color: transparent; }
