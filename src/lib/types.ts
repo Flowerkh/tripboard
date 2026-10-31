@@ -42,6 +42,18 @@ export interface Trip {
   notice: string;
   recs: Rec[];
   createdAt: number;
+  /** Set once the trip has a share link (Supabase). The token lets this browser update or stop it. */
+  share?: ShareInfo;
+}
+
+export interface ShareInfo {
+  id: string;
+  token: string;
+  /** fingerprint of the last version uploaded */
+  sig?: string;
+  /** when it was last uploaded (ms) */
+  at?: number;
+  error?: string;
 }
 
 export interface Item {

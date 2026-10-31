@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
+import { stopShareQuietly } from "../lib/share";
 import { fallbackView, MapView } from "../components/MapView";
 import { AskBar, ConfirmButton, go, Sheet } from "../components/ui";
 import { applyPending, discardPending, hasKey, runAi, stopAi } from "../lib/ai/run";
@@ -231,13 +232,14 @@ export function RecsSheet({ trip, onClose, onAdd }: { trip: Trip; onClose: () =>
   );
 }
 
-export function TripMenu({ trip, onClose }: { trip: Trip; onClose: () => void }) {
+export function TripMenu({ trip, onClose, onShare }: { trip: Trip; onClose: () => void; onShare: () => void }) {
   useApp(); // re-render when the key changes
   return (
     <Sheet onClose={onClose} label="여행 설정">
       <div className="sheet-head"><b style={{ flex: 1 }}>여행 설정</b><button type="button" className="icon-btn" aria-label="닫기" onClick={onClose}><Icon name="close" size={18} /></button></div>
       <div className="sheet-body">
         <button type="button" className="btn" style={{ justifyContent: "flex-start" }} onClick={() => { onClose(); go(`/edit/${trip.id}`); }}><Icon name="edit" size={18} />여행 정보 고치기 (날짜·이동편·취향)</button>
+        <button type="button" className="btn" style={{ justifyContent: "flex-start" }} onClick={onShare}><Icon name="share" size={18} />{trip.share ? "공유 링크 보기 (공유 중)" : "일정 공유하기"}</button>
         {!hasKey() && (
           <div className="card" style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, background: "var(--warn-soft)", borderColor: "transparent" }}>
             <b style={{ fontSize: 14 }}>지금은 데모 모드예요</b>
@@ -248,7 +250,7 @@ export function TripMenu({ trip, onClose }: { trip: Trip; onClose: () => void })
         <ConfirmButton className="btn" confirmText="한 번 더 누르면 지금 일정을 지우고 새로 짜요" onConfirm={() => { onClose(); runAi(trip.id, { kind: "plan" }); }}>
           <Icon name="sparkle" size={18} />{hasKey() ? "AI로 처음부터 다시 짜기" : "데모로 다시 짜기"}
         </ConfirmButton>
-        <ConfirmButton className="btn danger" confirmText="한 번 더 누르면 삭제돼요" onConfirm={() => { onClose(); deleteTrip(trip.id); go("/"); }}>
+        <ConfirmButton className="btn danger" confirmText={trip.share ? "한 번 더 누르면 삭제되고 공유 링크도 멈춰요" : "한 번 더 누르면 삭제돼요"} onConfirm={() => { onClose(); stopShareQuietly(trip); deleteTrip(trip.id); go("/"); }}>
           <Icon name="trash" size={18} />이 여행 삭제
         </ConfirmButton>
       </div>

@@ -4,6 +4,7 @@ import { useApp } from "./lib/store";
 import { Home } from "./screens/Home";
 import { NewTrip } from "./screens/NewTrip";
 import { Settings } from "./screens/Settings";
+import { SharedView } from "./screens/SharedView";
 import { TripNow } from "./screens/TripNow";
 import { TripView } from "./screens/TripView";
 
@@ -36,6 +37,7 @@ export function App() {
   else if (a === "new") screen = <NewTrip key={"new" + (b ?? "")} kind={b} />;
   else if (a === "edit" && b) screen = <NewTrip key={"edit" + b} editId={b} />;
   else if (a === "settings") screen = <Settings />;
+  else if (a === "t" && b) screen = <SharedView key={"t" + b} id={b} />;
   else screen = <Home />;
 
   return (

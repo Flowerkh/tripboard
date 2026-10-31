@@ -350,3 +350,8 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.5; resize: non
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* sharing */
+.shared-badge { display: inline-flex; align-items: center; gap: 6px; align-self: center; font-size: 12px; font-weight: 700; color: var(--accent-text); background: var(--accent-soft); border-radius: 999px; padding: 5px 11px; }
+.share-preview { margin: 0; max-height: 180px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: var(--font); font-size: 13px; line-height: 1.55; background: var(--sunk); border-radius: 12px; padding: 10px 12px; color: var(--ink); }
+.icon-btn.on-share { color: var(--accent-text); border-color: var(--accent); background: var(--accent-soft); }

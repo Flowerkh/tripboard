@@ -4,6 +4,7 @@ import { ConfirmButton, go, Switch } from "../components/ui";
 import { loadSamples, resetAll, setSettings, toast, useApp } from "../lib/store";
 import type { ThemePref } from "../lib/types";
 import { checkKey, hasKey } from "../lib/ai/run";
+import { stopShareQuietly } from "../lib/share";
 
 const MODELS: [string, string][] = [
   ["claude-sonnet-5-5", "Sonnet 5.5 · 추천"],
@@ -17,7 +18,7 @@ function Mini({ mode }: { mode: ThemePref }) {
 }
 
 export function Settings() {
-  const { settings } = useApp();
+  const { settings, trips } = useApp();
   const [show, setShow] = useState(false);
   const [key, setKey] = useState(settings.apiKey);
   const [check, setCheck] = useState<{ state: "busy" | "ok" | "bad"; msg?: string } | null>(null);
@@ -111,7 +112,7 @@ export function Settings() {
         <p className="muted" style={{ fontSize: 13 }}>여행은 이 기기의 브라우저에만 저장돼요. 다른 기기와 같이 보는 기능은 앱 단계에서 서버를 붙이면 생겨요.</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <button type="button" className="btn" onClick={loadSamples}>샘플 여행 넣기</button>
-          <ConfirmButton className="btn danger" confirmText="한 번 더 누르면 삭제" onConfirm={() => { resetAll(); toast("모든 여행을 지웠어요"); go("/"); }}>모든 여행 지우기</ConfirmButton>
+          <ConfirmButton className="btn danger" confirmText="한 번 더 누르면 삭제" onConfirm={() => { trips.forEach(stopShareQuietly); resetAll(); toast("모든 여행을 지웠어요"); go("/"); }}>모든 여행 지우기</ConfirmButton>
         </div>
       </section>
     </main>

@@ -9,6 +9,7 @@ import { dayRouteLinks, providerFor, providerName } from "../lib/links";
 import { useApp } from "../lib/store";
 import { hasGeo, itemsOfDay, legsOn, nowInfo, phase, tripDays, tripEnd } from "../lib/trip";
 import { Generating } from "./Generating";
+import { ShareSheet } from "./ShareSheet";
 import { ChatSheet, ItemSheet, RecsSheet, TripMenu } from "./TripSheets";
 
 export function TripView({ id }: { id: string }) {
@@ -23,6 +24,7 @@ export function TripView({ id }: { id: string }) {
   const [sheet, setSheet] = useState<{ id?: string; preset?: { day: string; start: string } } | null>(null);
   const [recs, setRecs] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [share, setShare] = useState(false);
   const [bigMap, setBigMap] = useState(false);
   useEffect(() => {
     if (trip && !tripDays(trip).includes(day)) setDay(tripDays(trip)[0]);
@@ -63,7 +65,9 @@ export function TripView({ id }: { id: string }) {
     <main className="screen tight" style={{ paddingBottom: 110 }}>
       <header className="page-head" style={{ gap: 10 }}>
         <button type="button" className="icon-btn" aria-label="내 여행으로" onClick={() => go("/")}><Icon name="back" /></button>
+        <span style={{ width: 44, flex: "none" }} aria-hidden="true" />
         <b style={{ fontSize: 17, flex: 1, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</b>
+        <button type="button" className={"icon-btn" + (trip.share ? " on-share" : "")} aria-label={trip.share ? "일정 공유 중" : "일정 공유"} onClick={() => setShare(true)}><Icon name="share" /></button>
         <button type="button" className="icon-btn" aria-label="여행 설정" onClick={() => setMenu(true)}><Icon name="sliders" /></button>
       </header>
 
@@ -168,7 +172,8 @@ export function TripView({ id }: { id: string }) {
       {chat && <ChatSheet trip={trip} viewingDay={day} onClose={() => setChat(false)} />}
       {sheet && <ItemSheet trip={trip} itemId={sheet.id} preset={sheet.preset} onClose={() => setSheet(null)} onAsk={(q) => { setSheet(null); ask(q); }} />}
       {recs && <RecsSheet trip={trip} onClose={() => setRecs(false)} onAdd={(title) => { setRecs(false); ask(`계절 추천 목록의 "${title}"을(를) 동선에 가장 잘 맞는 날과 시간에 넣어줘.`); }} />}
-      {menu && <TripMenu trip={trip} onClose={() => setMenu(false)} />}
+      {menu && <TripMenu trip={trip} onClose={() => setMenu(false)} onShare={() => { setMenu(false); setShare(true); }} />}
+      {share && <ShareSheet trip={trip} onClose={() => setShare(false)} />}
       {s.pending[id] && !chat && (
         <button type="button" className="btn primary" style={{ position: "fixed", bottom: 96, left: "50%", transform: "translateX(-50%)", zIndex: 40 }} onClick={() => setChat(true)}>AI 제안 확인하기</button>
       )}

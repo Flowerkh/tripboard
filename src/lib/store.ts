@@ -103,6 +103,13 @@ export function createTrip(t: Omit<Trip, "id" | "createdAt">): string {
   setState((s) => ({ trips: [...s.trips, { ...t, id, createdAt: Date.now() }] }));
   return id;
 }
+/** Saves a copy of someone else's shared trip as a new trip of your own. */
+export function importTrip(trip: Omit<Trip, "id" | "createdAt" | "share">, items: Omit<Item, "id" | "tripId">[]): string {
+  const id = createTrip(trip);
+  const made = items.map((it, k) => ({ ...it, id: uid("i"), tripId: id, done: false, order: Date.now() + k }));
+  setState((s) => ({ items: [...s.items, ...made] }));
+  return id;
+}
 export function updateTrip(id: string, patch: Partial<Trip>) {
   setState((s) => ({ trips: s.trips.map((t) => (t.id === id ? { ...t, ...patch } : t)) }));
 }
@@ -141,7 +148,8 @@ export function snapshot(tripId: string): Draft {
 /** Replace a trip and its items with a draft, remembering what was there for undo. */
 export function commitDraft(tripId: string, draft: Draft, before: Draft, msgId: string) {
   setState((s) => ({
-    trips: s.trips.map((t) => (t.id === tripId ? draft.trip : t)),
+    // keep the live share info: it may have been created or synced after the draft was copied
+    trips: s.trips.map((t) => (t.id === tripId ? { ...draft.trip, share: t.share } : t)),
     items: [...s.items.filter((i) => i.tripId !== tripId), ...draft.items],
     undo: { ...s.undo, [tripId]: { msgId, before } },
   }));
@@ -153,7 +161,7 @@ export function undoLast(tripId: string) {
     const undo = { ...s.undo };
     delete undo[tripId];
     return {
-      trips: s.trips.map((t) => (t.id === tripId ? u.before.trip : t)),
+      trips: s.trips.map((t) => (t.id === tripId ? { ...u.before.trip, share: t.share } : t)),
       items: [...s.items.filter((i) => i.tripId !== tripId), ...u.before.items],
       undo,
     };

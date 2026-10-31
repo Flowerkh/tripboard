@@ -26,8 +26,10 @@ export function LegRow({ leg, trip }: { leg: LegOnDay; trip: Trip }) {
   );
 }
 
-export function ItemRow({ it, n, prev, trip, provider, selected, isNow, past, onOpen }: {
+export function ItemRow({ it, n, prev, trip, provider, selected, isNow, past, onOpen, readOnly }: {
   it: Item; n?: number; prev?: Item | null; trip: Trip; provider: Provider; selected: boolean; isNow: boolean; past: boolean; onOpen: () => void;
+  /** shared-link view: no editing, no done toggle */
+  readOnly?: boolean;
 }) {
   const geo = hasGeo(it);
   const canLink = !!it.place || geo;
@@ -50,6 +52,7 @@ export function ItemRow({ it, n, prev, trip, provider, selected, isNow, past, on
           <span className="item-meta">
             <span className={"pill s-" + it.status}>{STATUS_LABEL[it.status]}</span>
             {isNow && <span className="pill s-todo">지금</span>}
+            {readOnly && it.done && <span className="pill s-confirmed">완료</span>}
             {it.place && <span>{it.place}</span>}
             {!geo && <span className="nogeo">위치 미정</span>}
           </span>
@@ -66,10 +69,12 @@ export function ItemRow({ it, n, prev, trip, provider, selected, isNow, past, on
               </a>
             </>
           )}
-          <button type="button" className="done-btn" aria-pressed={it.done} onClick={() => toggleDone(it.id)}>
-            {it.done && <Icon name="check" size={13} stroke={2.6} />}
-            {it.done ? "완료" : "완료 표시"}
-          </button>
+          {!readOnly && (
+            <button type="button" className="done-btn" aria-pressed={it.done} onClick={() => toggleDone(it.id)}>
+              {it.done && <Icon name="check" size={13} stroke={2.6} />}
+              {it.done ? "완료" : "완료 표시"}
+            </button>
+          )}
         </div>
       </div>
     </div>
