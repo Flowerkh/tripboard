@@ -3,16 +3,59 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#142037" />
+    <meta name="theme-color" content="#f3f5f9" />
     <title>트립보드</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon-192.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
+    <script>
+      // Pick light/dark before the first paint (same rule as the app's 화면 모드 setting), so nothing flashes.
+      (function () {
+        try {
+          var s = (JSON.parse(localStorage.getItem("tripboard:v1") || "{}").settings) || {};
+          var p = s.theme || "system";
+          var dark = p === "dark" || (p === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? "#0e1420" : "#f3f5f9");
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      /* Launch screen (design: 로딩 A · 브랜드). Inline so it shows before any other file arrives. */
+      #splash { --sp-bg: #f3f5f9; --sp-ink: #142037; --sp-muted: #556179; --sp-line: #d9e0ea; --sp-accent: #2357d8; --sp-tile: #142037; --sp-tile-line: transparent; --sp-shadow: 0 1px 2px rgba(20,32,55,0.06), 0 8px 24px rgba(20,32,55,0.08);
+        position: fixed; inset: 0; z-index: 2500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 0 32px 40px;
+        background: var(--sp-bg); color: var(--sp-ink); font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif; text-align: center; transition: opacity 0.25s ease; }
+      [data-theme="dark"] #splash { --sp-bg: #0e1420; --sp-ink: #e6ebf4; --sp-muted: #9aa7be; --sp-line: #28334d; --sp-accent: #7499ff; --sp-tile: #1c2945; --sp-tile-line: #28334d; --sp-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35); }
+      #splash.out { opacity: 0; pointer-events: none; }
+      #splash .sp-icon { width: 108px; height: 108px; box-sizing: border-box; border-radius: 30px; background: var(--sp-tile); border: 1px solid var(--sp-tile-line); box-shadow: var(--sp-shadow); display: flex; align-items: center; justify-content: center; }
+      #splash h1 { margin: 0 0 8px; font-size: 32px; line-height: 1.2; letter-spacing: -0.02em; font-weight: 700; }
+      #splash p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--sp-muted); }
+      #splash .sp-load { position: absolute; left: 0; right: 0; bottom: calc(76px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: 12px; font-size: 13px; font-weight: 500; color: var(--sp-muted); }
+      #splash .sp-track { width: 136px; height: 4px; border-radius: 999px; background: var(--sp-line); overflow: hidden; }
+      #splash .sp-track i { display: block; width: 40%; height: 100%; border-radius: 999px; background: var(--sp-accent); animation: sp-run 1.1s ease-in-out infinite; }
+      @keyframes sp-run { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+      @media (prefers-reduced-motion: reduce) { #splash .sp-track i { animation: none; } #splash { transition: none; } }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- fonts load without holding up the first paint -->
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" /></noscript>
   </head>
   <body>
+    <div id="splash" role="status" aria-label="트립보드 불러오는 중">
+      <div class="sp-icon" aria-hidden="true">
+        <svg width="76" height="76" viewBox="0 0 64 64"><path d="M52 32l-6-2H36L26 16h-3l5 14H18l-4-6h-2l2 8-2 8h2l4-6h10l-5 14h3l10-14h10z" fill="#7499ff" /></svg>
+      </div>
+      <div>
+        <h1>트립보드</h1>
+        <p>말로 짜고, 가면서 고치는 여행 일정</p>
+      </div>
+      <div class="sp-load">
+        <div class="sp-track"><i></i></div>
+        <span>여행 불러오는 중</span>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="./src/main.tsx"></script>
   </body>

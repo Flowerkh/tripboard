@@ -5,6 +5,7 @@ import "./styles.css";
 import { installHScroll } from "./lib/hscroll";
 import { installShareSync } from "./lib/shareSync";
 import { installCloud } from "./lib/cloud";
+import { installSplash } from "./lib/splash";
 
 installHScroll();
 installShareSync();
@@ -15,3 +16,5 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </StrictMode>,
 );
+
+installSplash();
