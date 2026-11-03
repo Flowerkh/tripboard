@@ -1,10 +1,13 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useRoute } from "./components/ui";
 import { useApp } from "./lib/store";
 import { Home } from "./screens/Home";
 import { NewTrip } from "./screens/NewTrip";
 import { Settings } from "./screens/Settings";
 import { SharedView } from "./screens/SharedView";
+
+// admin pages download only when an admin opens them
+const AdminApp = lazy(() => import("./admin/AdminApp"));
 import { TripNow } from "./screens/TripNow";
 import { TripView } from "./screens/TripView";
 
@@ -31,6 +34,14 @@ export function App() {
   }, [route.join("/")]);
 
   const [a, b, c] = route;
+  if (a === "admin") {
+    return (
+      <>
+        <Suspense fallback={<div className="adm-gate"><p className="muted">관리자 화면을 여는 중…</p></div>}><AdminApp sub={b} /></Suspense>
+        {s.toast && <div className="toast" role="status">{s.toast}</div>}
+      </>
+    );
+  }
   let screen;
   if (a === "trip" && b && c === "now") screen = <TripNow key={b + "now"} id={b} />;
   else if (a === "trip" && b) screen = <TripView key={b} id={b} />;

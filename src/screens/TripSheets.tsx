@@ -3,7 +3,8 @@ import { Icon } from "../components/Icon";
 import { stopShareQuietly } from "../lib/share";
 import { fallbackView, MapView } from "../components/MapView";
 import { AskBar, ConfirmButton, go, Sheet, TimeInput } from "../components/ui";
-import { applyPending, discardPending, hasKey, runAi, stopAi } from "../lib/ai/run";
+import { applyPending, discardPending, runAi, stopAi } from "../lib/ai/run";
+import { KakaoButton } from "../components/Account";
 import { fmtDay, normTime, uid } from "../lib/dates";
 import { dirLink, mapLink, providerFor, providerName } from "../lib/links";
 import { deleteItem, deleteTrip, undoLast, upsertItem, useApp } from "../lib/store";
@@ -41,10 +42,11 @@ export function ChatSheet({ trip, viewingDay, onClose }: { trip: Trip; viewingDa
         </span>
         <button type="button" className="icon-btn" aria-label="닫기" onClick={onClose}><Icon name="close" size={18} /></button>
       </div>
-      {!hasKey() && (
-        <p className="demo-note" style={{ marginTop: 10 }}>
-          데모 모드예요. "30분 미뤄줘" 같은 간단한 말만 알아들어요. <button type="button" className="link-btn" style={{ padding: 0 }} onClick={() => go("/settings")}>API 키 넣기</button>
-        </p>
+      {!s.user && (
+        <div className="card" style={{ margin: "10px 16px 0", padding: 12, display: "flex", flexDirection: "column", gap: 8, background: "var(--accent-soft)", borderColor: "transparent" }}>
+          <p style={{ fontSize: 14 }}>AI와 대화로 일정을 고치려면 카카오로 로그인해 주세요.</p>
+          <KakaoButton small label="카카오로 로그인" />
+        </div>
       )}
       <div className="chat-list" ref={list} aria-live="polite">
         {!msgs.length && !run ? (
@@ -233,23 +235,23 @@ export function RecsSheet({ trip, onClose, onAdd }: { trip: Trip; onClose: () =>
 }
 
 export function TripMenu({ trip, onClose, onShare }: { trip: Trip; onClose: () => void; onShare: () => void }) {
-  useApp(); // re-render when the key changes
+  const s = useApp();
   return (
     <Sheet onClose={onClose} label="여행 설정">
       <div className="sheet-head"><b style={{ flex: 1 }}>여행 설정</b><button type="button" className="icon-btn" aria-label="닫기" onClick={onClose}><Icon name="close" size={18} /></button></div>
       <div className="sheet-body">
         <button type="button" className="btn" style={{ justifyContent: "flex-start" }} onClick={() => { onClose(); go(`/edit/${trip.id}`); }}><Icon name="edit" size={18} />여행 정보 고치기 (날짜·이동편·취향)</button>
         <button type="button" className="btn" style={{ justifyContent: "flex-start" }} onClick={onShare}><Icon name="share" size={18} />{trip.share ? "공유 링크 보기 (공유 중)" : "일정 공유하기"}</button>
-        {!hasKey() && (
-          <div className="card" style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, background: "var(--warn-soft)", borderColor: "transparent" }}>
-            <b style={{ fontSize: 14 }}>지금은 데모 모드예요</b>
-            <p style={{ fontSize: 13 }}>API 키가 저장돼 있지 않아서 다시 짜도 장소 없는 데모 틀만 나와요.</p>
-            <button type="button" className="btn sm" style={{ alignSelf: "flex-start" }} onClick={() => { onClose(); go("/settings"); }}><Icon name="key" size={15} />API 키 넣으러 가기</button>
+        {s.user ? (
+          <ConfirmButton className="btn" confirmText="한 번 더 누르면 지금 일정을 지우고 새로 짜요" onConfirm={() => { onClose(); runAi(trip.id, { kind: "plan" }); }}>
+            <Icon name="sparkle" size={18} />AI로 처음부터 다시 짜기
+          </ConfirmButton>
+        ) : (
+          <div className="card" style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, background: "var(--accent-soft)", borderColor: "transparent" }}>
+            <p style={{ fontSize: 14 }}>로그인하면 AI가 이 여행 일정을 짜 줘요.</p>
+            <KakaoButton small label="카카오로 로그인" />
           </div>
         )}
-        <ConfirmButton className="btn" confirmText="한 번 더 누르면 지금 일정을 지우고 새로 짜요" onConfirm={() => { onClose(); runAi(trip.id, { kind: "plan" }); }}>
-          <Icon name="sparkle" size={18} />{hasKey() ? "AI로 처음부터 다시 짜기" : "데모로 다시 짜기"}
-        </ConfirmButton>
         <ConfirmButton className="btn danger" confirmText={trip.share ? "한 번 더 누르면 삭제되고 공유 링크도 멈춰요" : "한 번 더 누르면 삭제돼요"} onConfirm={() => { onClose(); stopShareQuietly(trip); deleteTrip(trip.id); go("/"); }}>
           <Icon name="trash" size={18} />이 여행 삭제
         </ConfirmButton>

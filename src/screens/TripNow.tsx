@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
 import { fallbackView, MapView, type Pin } from "../components/MapView";
 import { AskBar, go } from "../components/ui";
+import { KakaoButton } from "../components/Account";
 import { quickShift, runAi } from "../lib/ai/run";
 import { fromMin, toMin, untilLabel } from "../lib/dates";
 import { dirLink, providerFor, providerName } from "../lib/links";
@@ -111,7 +112,11 @@ export function TripNow({ id }: { id: string }) {
       </section>
 
       <div className="askbar-wrap" style={{ zIndex: 750 }}>
-        <AskBar id="now-ask" placeholder="말로 고치기 · 30분 늦어질 것 같아" onSend={ask} disabled={!!s.run} />
+        {s.user ? (
+          <AskBar id="now-ask" placeholder="말로 고치기 · 30분 늦어질 것 같아" onSend={ask} disabled={!!s.run} />
+        ) : (
+          <div className="login-bar"><span>AI에게 말로 일정을 고치려면</span><KakaoButton small label="카카오로 로그인" /></div>
+        )}
       </div>
       {chat && <ChatSheet trip={trip} viewingDay={n.day} onClose={() => setChat(false)} />}
     </main>

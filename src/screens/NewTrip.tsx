@@ -2,7 +2,8 @@ import { useMemo, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { go, Switch, TimeInput } from "../components/ui";
 import { addDays, durLabel, fmtDay, parseDay, pad, seasonOf, today } from "../lib/dates";
-import { readFlights, runAi, hasKey } from "../lib/ai/run";
+import { canUseAi, LOGIN_FOR_AI, readFlights, runAi } from "../lib/ai/run";
+import { loginWithKakao, planAfterLogin } from "../lib/cloud";
 import { createTrip, toast, updateTrip, useApp } from "../lib/store";
 import type { Kind, Leg, Trip } from "../lib/types";
 
@@ -70,7 +71,7 @@ export function NewTrip({ kind, editId }: { kind?: string; editId?: string }) {
       memo: w.memo.trim(), legs, dayLabels: editing?.dayLabels ?? {}, notice: editing?.notice ?? "", recs: editing?.recs ?? [],
     };
   };
-  const finish = (how: "ai" | "empty" | "save") => {
+  const finish = (how: "ai" | "empty" | "save" | "login") => {
     if (editing) {
       updateTrip(editing.id, build());
       toast("여행 정보를 저장했어요");
@@ -80,6 +81,11 @@ export function NewTrip({ kind, editId }: { kind?: string; editId?: string }) {
     const id = createTrip(build());
     go(`/trip/${id}`);
     if (how === "ai") setTimeout(() => runAi(id, { kind: "plan" }), 0);
+    if (how === "login") {
+      // keep the trip, sign in, and let the AI plan it once the member is back
+      planAfterLogin(id);
+      setTimeout(() => loginWithKakao(), 0);
+    }
   };
 
   return (
@@ -106,7 +112,9 @@ export function NewTrip({ kind, editId }: { kind?: string; editId?: string }) {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
             <button type="button" className="btn big" onClick={() => finish("empty")}>빈 일정으로</button>
-            <button type="button" className="btn primary big" onClick={() => finish("ai")}><Icon name="sparkle" />AI로 일정 짜기</button>
+            {canUseAi()
+              ? <button type="button" className="btn primary big" onClick={() => finish("ai")}><Icon name="sparkle" />AI로 일정 짜기</button>
+              : <button type="button" className="kakao-btn big-k" onClick={() => finish("login")}>카카오 로그인하고 AI로 짜기</button>}
           </div>
         )}
       </div>
@@ -278,7 +286,7 @@ function StepOverseas({ w, set }: StepProps) {
       <div className="sec">
         <div className="sec-row">
           <span className="label">항공편 (현지 시각)</span>
-          <button type="button" className="btn sm" style={{ color: "var(--accent-text)" }} onClick={() => (hasKey() ? file.current?.click() : toast("e-티켓 읽기는 설정에서 API 키를 넣어야 쓸 수 있어요"))} disabled={reading}>
+          <button type="button" className="btn sm" style={{ color: "var(--accent-text)" }} onClick={() => (canUseAi() ? file.current?.click() : toast(LOGIN_FOR_AI))} disabled={reading}>
             <Icon name="camera" size={16} />{reading ? "읽는 중…" : "e-티켓 캡처로 채우기"}
           </button>
           <input ref={file} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon";
 import { go } from "../components/ui";
-import { clearRunError, hasKey, runAi, stopAi } from "../lib/ai/run";
+import { clearRunError, runAi, stopAi } from "../lib/ai/run";
 import { durLabel, fmtDay, seasonOf } from "../lib/dates";
 import type { Run } from "../lib/store";
 import { routeLabel, tripDays, tripEnd } from "../lib/trip";
@@ -30,7 +30,7 @@ export function Generating({ trip, run }: { trip: Trip; run: Run }) {
     <main className="screen" aria-busy={!run.error}>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 8 }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color: run.error ? "var(--bad)" : "var(--accent-text)" }}>
-          <Icon name="sparkle" size={16} />{run.error ? "일정을 짜지 못했어요" : hasKey() ? "AI가 일정을 짜고 있어요" : "데모로 일정 틀을 만들고 있어요"}
+          <Icon name="sparkle" size={16} />{run.error ? "일정을 짜지 못했어요" : "AI가 일정을 짜고 있어요"}
         </span>
         <h1 style={{ fontSize: 26, letterSpacing: "-0.02em" }}>{trip.title}</h1>
         <span className="muted" style={{ fontSize: 14 }}>

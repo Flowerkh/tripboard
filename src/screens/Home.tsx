@@ -46,6 +46,7 @@ export function Home() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {s.user === null && <KakaoButton small label="로그인" />}
+          {s.ai?.is_admin && <button type="button" className="icon-btn" aria-label="관리자 페이지" title="관리자 페이지" onClick={() => go("/admin")}><Icon name="shield" /></button>}
           {s.user ? (
             <button type="button" className="avatar-btn" aria-label={`${s.user.name} · 계정과 설정`} onClick={() => go("/settings")}>
               <Avatar user={s.user} size={40} />

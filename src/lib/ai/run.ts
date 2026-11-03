@@ -1,18 +1,22 @@
 import { addChat, commitDraft, getState, markChats, setPending, setState, snapshot, toast, type Draft } from "../store";
-import { MAX_INPUT, OFF_MARK, OFF_REPLY, offTopic } from "./guard";
+import { refreshAi } from "../cloud";
+import { MAX_INPUT, OFF_MARK, OFF_REPLY } from "./guard";
 import { contextBlock, DAY_PROMPT, FLIGHT_PROMPT, GEO_PROMPT, PLAN_PROMPT, RECS_PROMPT, RULES } from "./prompts";
 import { makeExecutors, TOOL_DEFS } from "./tools";
-import { AiError, readTicket, runAgent, testConn, type Msg } from "./claude";
-import { demoChat, demoPlan, demoRecsRun } from "./demo";
+import { AiError, readTicket, runAgent, type Feature, type Msg } from "./claude";
 
 let ctl: AbortController | null = null;
 
 export function stopAi() {
   ctl?.abort();
 }
-export const hasKey = () => {
-  const { apiKey, proxyUrl } = getState().settings;
-  return !!(apiKey.trim() || proxyUrl.trim());
+/** AI is for signed-in members only (the server counts each member's use). */
+export const canUseAi = () => !!getState().user;
+export const LOGIN_FOR_AI = "카카오로 로그인하면 AI를 쓸 수 있어요";
+/** The AI the member picked, if the admin still offers it ("" lets the server use its default). */
+const chosenProvider = () => {
+  const { settings, ai } = getState();
+  return settings.aiProvider && ai?.providers.some((p) => p.id === settings.aiProvider) ? settings.aiProvider : "";
 };
 
 function history(tripId: string, text: string): Msg[] {
@@ -38,15 +42,11 @@ const SHOWN: Record<string, string> = { plan: "전체 일정을 짜줘", recs: "
 
 /** One AI turn: works on a copy of the trip, then applies it (or waits for approval). */
 export async function runAi(tripId: string, mode: Mode): Promise<void> {
-  if (mode.kind === "chat") {
-    mode = { ...mode, text: mode.text.slice(0, MAX_INPUT) };
-    if (offTopic(mode.text)) {
-      // A: answered by the app, no AI call, no tokens
-      addChat(tripId, { role: "user", text: mode.text, offTopic: true });
-      addChat(tripId, { role: "assistant", text: OFF_REPLY, offTopic: true });
-      return;
-    }
+  if (!canUseAi()) {
+    toast(LOGIN_FOR_AI);
+    return;
   }
+  if (mode.kind === "chat") mode = { ...mode, text: mode.text.slice(0, MAX_INPUT) };
   const s = getState();
   if (s.run?.error) setState({ run: null }); // a failed run left on screen shouldn't block a new one
   else if (s.run) {
@@ -62,8 +62,8 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
     changes.push(`- 기존 일정 ${draft.items.length}개`);
     draft.items = [];
   }
-  if (mode.kind === "plan" && hasKey()) {
-    // Drop leftovers from an earlier demo plan; the AI writes fresh ones.
+  if (mode.kind === "plan") {
+    // the AI writes fresh day themes and notes
     draft.trip = { ...draft.trip, notice: "", dayLabels: {} };
   }
   ctl = new AbortController();
@@ -75,30 +75,24 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
     setState((st) => (st.run ? { run: { ...st.run, stage: Math.max(st.run.stage, name === "update_trip" ? 1 : 2), status: name === "add_items" ? "일정 넣는 중…" : "여행 정보 정리 중…" } } : {}));
 
   let text = "";
-  const usedDemo = !hasKey();
+  let fellBack = "";
   try {
-    if (usedDemo) {
-      if (mode.kind === "geo") throw new AiError("위치 찾기는 API 키가 있어야 해요. 설정에서 넣어 주세요.");
-      if (mode.kind === "plan" || mode.kind === "day") text = await demoPlan(draft, changes, onStage, signal);
-      else if (mode.kind === "recs") text = await demoRecsRun(draft, changes, signal);
-      else text = await demoChat(draft, changes, mode.text, mode.viewingDay, signal);
-    } else {
-      const { settings } = getState();
-      const bigJob = mode.kind === "plan" || mode.kind === "day";
-      const prompt = mode.kind === "plan" ? PLAN_PROMPT : mode.kind === "day" ? DAY_PROMPT(mode.day) : mode.kind === "recs" ? RECS_PROMPT : mode.kind === "geo" ? GEO_PROMPT : "";
-      const messages: Msg[] = mode.kind === "chat" ? history(tripId, mode.text) : [{ role: "user", content: prompt }];
-      text = await runAgent({
-        conn: { apiKey: settings.apiKey, proxyUrl: settings.proxyUrl },
-        model: bigJob || mode.kind === "recs" || mode.kind === "geo" ? settings.planModel : settings.editModel,
-        system: RULES,
-        context: contextBlock(draft.trip, draft.items, mode.kind === "chat" ? mode.viewingDay : undefined),
-        messages,
-        tools: TOOL_DEFS,
-        run: makeExecutors({ draft, changes, onStage }),
-        maxTokens: bigJob ? 16000 : 1500, // C: a chat reply can't run long even if something slips through
-        signal,
-      });
-    }
+    const bigJob = mode.kind === "plan" || mode.kind === "day";
+    const prompt = mode.kind === "plan" ? PLAN_PROMPT : mode.kind === "day" ? DAY_PROMPT(mode.day) : mode.kind === "recs" ? RECS_PROMPT : mode.kind === "geo" ? GEO_PROMPT : "";
+    const messages: Msg[] = mode.kind === "chat" ? history(tripId, mode.text) : [{ role: "user", content: prompt }];
+    text = await runAgent({
+      feature: mode.kind as Feature,
+      provider: chosenProvider(),
+      system: RULES,
+      context: contextBlock(draft.trip, draft.items, mode.kind === "chat" ? mode.viewingDay : undefined),
+      messages,
+      tools: TOOL_DEFS,
+      run: makeExecutors({ draft, changes, onStage }),
+      maxTokens: bigJob ? 16000 : mode.kind === "chat" ? 1500 : 4000, // the server caps these too
+      userText: mode.kind === "chat" ? mode.text : undefined,
+      signal,
+      onReply: (r) => { if (r.fallback && r.provider) fellBack = r.provider; },
+    });
   } catch (e) {
     const aborted = (e as Error).name === "AbortError";
     const msg = aborted ? "멈췄어요. 바뀐 건 없어요." : e instanceof AiError ? e.message : `문제가 생겼어요: ${(e as Error).message}`;
@@ -107,6 +101,8 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
     ctl = null;
     if (!aborted && mode.kind === "plan") setState((st) => ({ run: st.run ? { ...st.run, error: msg } : null }));
     else setState({ run: null });
+    if (e instanceof AiError && ["limit", "paused", "login", "no_ai"].includes(e.code) && mode.kind !== "geo") toast(msg);
+    refreshAi();
     return;
   }
   ctl = null;
@@ -123,7 +119,9 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
     else commitDraft(tripId, draft, before, msgId);
   }
   setState({ run: null });
-  if (mode.kind === "plan") toast(usedDemo ? "데모 일정이에요 · 설정에서 API 키를 저장하면 실제 장소로 짜요" : "일정을 다 짰어요");
+  refreshAi(); // usage counts on the settings page
+  if (fellBack) toast(`고른 AI가 응답하지 않아 ${fellBack === "claude" ? "Claude" : fellBack === "gemini" ? "Gemini" : "OpenAI"}로 대신 답했어요`);
+  if (mode.kind === "plan") toast("일정을 다 짰어요");
   if (mode.kind === "geo") toast(changes.length ? `${changes.length}곳을 지도에 표시했어요 · 대화에서 되돌릴 수 있어요` : "지도에 더 표시할 수 있는 곳을 찾지 못했어요");
 }
 
@@ -158,20 +156,11 @@ export function clearRunError() {
   setState({ run: null });
 }
 
-/** Settings "키 확인": returns null when the key works, or a message saying what's wrong. */
-export async function checkKey(): Promise<string | null> {
-  const { settings } = getState();
-  if (!hasKey()) return "키가 비어 있어요.";
-  try {
-    await testConn({ apiKey: settings.apiKey, proxyUrl: settings.proxyUrl });
-    return null;
-  } catch (e) {
-    return e instanceof AiError ? e.message : (e as Error).message;
-  }
-}
-
 export async function readFlights(file: File) {
-  const { settings } = getState();
-  if (!hasKey()) throw new AiError("e-티켓 읽기는 API 키가 있어야 해요. 설정에서 넣어 주세요.");
-  return readTicket({ apiKey: settings.apiKey, proxyUrl: settings.proxyUrl }, settings.planModel, file, FLIGHT_PROMPT);
+  if (!canUseAi()) throw new AiError(`e-티켓 읽기: ${LOGIN_FOR_AI}`, "login");
+  try {
+    return await readTicket(chosenProvider(), file, FLIGHT_PROMPT);
+  } finally {
+    refreshAi();
+  }
 }

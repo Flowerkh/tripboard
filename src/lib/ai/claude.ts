@@ -1,11 +1,14 @@
 /**
- * Minimal Claude Messages API client for the browser.
- *
- * For testing, the key is typed into Settings and kept in this browser only.
- * Never ship an app with a key inside it: for the Android/production build,
- * send these same requests through your own server (see README).
+ * AI client. The app no longer holds any API key: every request goes to the "ai" server function
+ * (supabase/functions/ai) with the member's login token. The server checks limits and the filter,
+ * calls the AI the member chose (Claude, Gemini or OpenAI) and answers in Claude's message format,
+ * so the tool loop below is the same whichever AI answers.
  */
-const API = "https://api.anthropic.com/v1/messages";
+import { SUPABASE_KEY, SUPABASE_URL } from "../config";
+import { supabase } from "../cloud";
+import { OFF_MARK } from "./guard";
+
+const FN = `${SUPABASE_URL}/functions/v1/ai`;
 
 type Block =
   | { type: "text"; text: string }
@@ -14,22 +17,12 @@ type Block =
   | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
 export interface Msg { role: "user" | "assistant"; content: string | Block[] }
 
-export class AiError extends Error {}
-
-function explain(status: number, body: string): string {
-  let detail = "";
-  try { detail = JSON.parse(body)?.error?.message ?? ""; } catch { /* not JSON */ }
-  if (status === 401) return "API 키가 맞지 않아요. 설정에서 다시 넣어 주세요.";
-  if (status === 403) return "이 API 키로는 이 요청을 쓸 수 없어요.";
-  if (status === 404) return "모델을 찾을 수 없어요. 설정에서 모델을 다시 골라 주세요.";
-  if (status === 429) return "요청이 너무 많아요. 잠시 뒤에 다시 해 주세요.";
-  if (status === 529 || status >= 500) return "Claude 서버가 바빠요. 잠시 뒤에 다시 해 주세요.";
-  if (/credit|balance/i.test(detail)) return "API 크레딧이 부족해요. Claude 콘솔에서 결제 정보를 확인해 주세요.";
-  return detail ? `요청이 거절됐어요: ${detail}` : `요청이 실패했어요 (${status}).`;
+export class AiError extends Error {
+  constructor(message: string, public code = "") { super(message); }
 }
 
-/** Either a personal key (testing in the browser) or your own server that holds the key. */
-export interface Conn { apiKey: string; proxyUrl: string }
+export type Feature = "plan" | "day" | "chat" | "geo" | "recs" | "ticket";
+export interface ServerReply { content: Block[]; stop_reason: string; provider?: string; model?: string; fallback?: boolean; blocked?: boolean; reply?: string }
 
 /** Stops a request that hangs, so the app never waits forever. */
 function withTimeout(signal: AbortSignal | undefined, ms: number): AbortSignal | undefined {
@@ -39,57 +32,62 @@ function withTimeout(signal: AbortSignal | undefined, ms: number): AbortSignal |
   return signal ? any([signal, t]) : t;
 }
 
-async function call(conn: Conn, body: Record<string, unknown>, signal?: AbortSignal, timeoutMs = 300_000) {
+interface CallOpts { feature: Feature; provider: string; requestId: string; round: number; userText?: string; signal?: AbortSignal }
+
+async function call(body: Record<string, unknown>, o: CallOpts): Promise<ServerReply> {
+  const { data: s } = await supabase.auth.getSession();
+  const token = s.session?.access_token;
+  if (!token) throw new AiError("카카오로 로그인하면 AI를 쓸 수 있어요.", "login");
   let res: Response;
-  const viaProxy = !!conn.proxyUrl.trim();
   try {
-    res = await fetch(viaProxy ? conn.proxyUrl.trim() : API, {
+    res = await fetch(FN, {
       method: "POST",
-      signal: withTimeout(signal, timeoutMs),
-      headers: viaProxy
-        ? { "content-type": "application/json" }
-        : {
-            "content-type": "application/json",
-            "x-api-key": conn.apiKey.trim(),
-            "anthropic-version": "2023-06-01",
-            "anthropic-dangerous-direct-browser-access": "true",
-          },
-      body: JSON.stringify(body),
+      signal: withTimeout(o.signal, 170_000),
+      headers: { "content-type": "application/json", apikey: SUPABASE_KEY, authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: "messages", feature: o.feature, provider: o.provider, request_id: o.requestId, round: o.round, user_text: o.userText, body }),
     });
   } catch (e) {
-    if ((e as Error).name === "AbortError" && signal?.aborted) throw e;
+    if ((e as Error).name === "AbortError" && o.signal?.aborted) throw e;
     if ((e as Error).name === "TimeoutError" || (e as Error).name === "AbortError") throw new AiError("응답이 너무 오래 걸려서 멈췄어요. 다시 해 보세요.");
-    throw new AiError("Claude에 연결하지 못했어요. 인터넷 연결이나 AI 서버 주소를 확인해 주세요.");
+    throw new AiError("AI 서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.");
   }
-  const text = await res.text();
-  if (!res.ok) throw new AiError(explain(res.status, text));
-  return JSON.parse(text) as { content: Block[]; stop_reason: string; usage?: Record<string, number> };
+  let data: any = {};
+  try { data = await res.json(); } catch { /* not JSON */ }
+  if (!res.ok) throw new AiError(data.error || `AI 서버 오류예요 (${res.status}).`, data.code || "");
+  return data as ServerReply;
 }
 
 export interface AgentOpts {
-  conn: Conn;
-  model: string;
+  feature: Feature;
+  provider: string;
   system: string;
   context: string;
   messages: Msg[];
   tools: { name: string; description: string; input_schema: unknown }[];
   run: Record<string, (input: Record<string, unknown>) => unknown>;
   maxTokens?: number;
+  userText?: string;
   signal?: AbortSignal;
+  onReply?: (r: ServerReply) => void;
 }
 
-/** Calls Claude, runs the tools it asks for, and repeats until it answers in text. */
+/** Calls the AI, runs the tools it asks for, and repeats until it answers in text. */
 export async function runAgent(o: AgentOpts): Promise<string> {
   const msgs: Msg[] = [...o.messages];
-  // Rules and tool definitions never change, so they are cached; the trip context changes every turn.
-  const tools = o.tools.map((t, i) => (i === o.tools.length - 1 ? { ...t, cache_control: { type: "ephemeral" } } : t));
+  // Rules never change, so they are cached (Claude); the trip context changes every turn.
   const system = [
     { type: "text", text: o.system, cache_control: { type: "ephemeral" } },
     { type: "text", text: o.context },
   ];
+  const requestId = crypto.randomUUID();
   const texts: string[] = [];
   for (let round = 0; round < 6; round++) {
-    const data = await call(o.conn, { model: o.model, max_tokens: o.maxTokens ?? 4000, system, tools, messages: msgs }, o.signal);
+    const data = await call(
+      { system, tools: o.tools, messages: msgs, max_tokens: o.maxTokens ?? 1500 },
+      { feature: o.feature, provider: o.provider, requestId, round, userText: o.userText, signal: o.signal },
+    );
+    if (data.blocked) return `${OFF_MARK} ${data.reply ?? ""}`; // stopped by the server's filter, no AI call
+    o.onReply?.(data);
     msgs.push({ role: "assistant", content: data.content });
     for (const b of data.content) if (b.type === "text" && b.text.trim()) texts.push(b.text.trim());
     const uses = data.content.filter((b): b is Extract<Block, { type: "tool_use" }> => b.type === "tool_use");
@@ -108,13 +106,8 @@ export async function runAgent(o: AgentOpts): Promise<string> {
   return texts[texts.length - 1] ?? "";
 }
 
-/** Smallest possible request (fractions of a cent) to check the key, credits and connection. */
-export async function testConn(conn: Conn): Promise<void> {
-  await call(conn, { model: "claude-haiku-5-5", max_tokens: 1, messages: [{ role: "user", content: "hi" }] }, undefined, 30_000);
-}
-
 /** Reads flight details from an e-ticket screenshot. */
-export async function readTicket(conn: Conn, model: string, file: File, prompt: string, signal?: AbortSignal) {
+export async function readTicket(provider: string, file: File, prompt: string, signal?: AbortSignal) {
   const data = await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
@@ -122,12 +115,11 @@ export async function readTicket(conn: Conn, model: string, file: File, prompt: 
     r.readAsDataURL(file);
   });
   const media = ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type) ? file.type : "image/jpeg";
-  const res = await call(conn, {
-    model,
-    max_tokens: 600,
-    messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: media, data } }, { type: "text", text: prompt }] }],
-  }, signal);
-  const text = res.content.filter((b): b is Extract<Block, { type: "text" }> => b.type === "text").map((b) => b.text).join("\n");
+  const res = await call(
+    { max_tokens: 600, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: media, data } }, { type: "text", text: prompt }] }] },
+    { feature: "ticket", provider, requestId: crypto.randomUUID(), round: 0, signal },
+  );
+  const text = (res.content ?? []).filter((b): b is Extract<Block, { type: "text" }> => b.type === "text").map((b) => b.text).join("\n");
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) throw new AiError("항공권에서 정보를 찾지 못했어요. 직접 넣어 주세요.");
   return JSON.parse(m[0]) as { out?: Record<string, string>; back?: Record<string, string> };

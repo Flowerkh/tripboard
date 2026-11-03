@@ -3,7 +3,8 @@ import { Icon } from "../components/Icon";
 import { fallbackView, MapView, type Pin } from "../components/MapView";
 import { ItemRow, LegRow } from "../components/Timeline";
 import { AskBar, go } from "../components/ui";
-import { hasKey, runAi } from "../lib/ai/run";
+import { canUseAi, LOGIN_FOR_AI, runAi } from "../lib/ai/run";
+import { KakaoButton } from "../components/Account";
 import { daysBetween, durLabel, fmtDay, nowMin, today, toMin } from "../lib/dates";
 import { dayRouteLinks, providerFor, providerName } from "../lib/links";
 import { toast, useApp } from "../lib/store";
@@ -112,7 +113,7 @@ export function TripView({ id }: { id: string }) {
         {!geo.length && <div className="map-empty"><span><Icon name="pin" size={16} />{unplaced ? "아직 지도에 표시된 곳이 없어요" : "장소를 넣으면 여기에 동선이 그려져요"}</span></div>}
         {unplaced > 0 && (
           <button type="button" className="float-chip map-over geo-chip" style={{ left: 10, top: 10 }} disabled={!!s.run}
-            onClick={() => (hasKey() ? runAi(id, { kind: "geo" }) : (toast("위치 찾기는 API 키가 있어야 해요"), go("/settings")))}>
+            onClick={() => (canUseAi() ? runAi(id, { kind: "geo" }) : toast(LOGIN_FOR_AI))}>
             <Icon name="pin" size={14} />{s.run?.kind === "geo" ? "위치 찾는 중…" : `위치 미정 ${unplaced}곳 지도에 표시`}
           </button>
         )}
@@ -173,7 +174,11 @@ export function TripView({ id }: { id: string }) {
       </section>
 
       <div className="askbar-wrap">
-        <AskBar id="trip-ask" placeholder={list.length ? "말로 고치기 · 점심은 국밥집으로" : `예: ${dayIdx + 1}일차는 바다 위주로 짜줘`} onSend={ask} disabled={!!s.run} />
+        {s.user ? (
+          <AskBar id="trip-ask" placeholder={list.length ? "말로 고치기 · 점심은 국밥집으로" : `예: ${dayIdx + 1}일차는 바다 위주로 짜줘`} onSend={ask} disabled={!!s.run} />
+        ) : (
+          <div className="login-bar"><span>AI에게 말로 일정을 고치려면</span><KakaoButton small label="카카오로 로그인" /></div>
+        )}
       </div>
 
       {chat && <ChatSheet trip={trip} viewingDay={day} onClose={() => setChat(false)} />}

@@ -30,6 +30,19 @@ export interface State {
   /** what is already in the account, per trip (saved on this device) */
   cloud: CloudMeta;
   sync: SyncStatus;
+  /** what the signed-in member may use (from the server); null when signed out or not loaded */
+  ai: AiStatus | null;
+}
+
+export interface AiStatus {
+  providers: { id: "claude" | "gemini" | "openai"; label: string }[];
+  default_provider: string;
+  daily_limit: number;
+  monthly_limit: number;
+  used_today: number;
+  used_month: number;
+  paused: boolean;
+  is_admin: boolean;
 }
 
 export interface Account {
@@ -52,10 +65,7 @@ export const EMPTY_CLOUD: CloudMeta = { userId: "", trips: {}, deleted: [] };
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
   domesticMap: "kakao",
-  apiKey: "",
-  proxyUrl: "",
-  planModel: "claude-sonnet-5-5",
-  editModel: "claude-sonnet-5-5",
+  aiProvider: "",
   confirmAI: false,
 };
 
@@ -71,7 +81,11 @@ function load(): State {
     trips: saved.trips ?? [],
     items: saved.items ?? [],
     chats: saved.chats ?? {},
-    settings: { ...DEFAULT_SETTINGS, ...(saved.settings ?? {}) },
+    // older versions kept an API key and model names here; drop them so the key leaves this device
+    settings: (() => {
+      const { apiKey: _k, proxyUrl: _p, planModel: _m1, editModel: _m2, ...rest } = (saved.settings ?? {}) as Partial<Settings> & Record<string, unknown>;
+      return { ...DEFAULT_SETTINGS, ...rest } as Settings;
+    })(),
     undo: {},
     pending: {},
     run: null,
@@ -79,6 +93,7 @@ function load(): State {
     user: undefined,
     cloud: { ...EMPTY_CLOUD, ...(saved.cloud ?? {}) },
     sync: { state: "idle" },
+    ai: null,
   };
 }
 
@@ -86,17 +101,22 @@ let state: State = load();
 const subs = new Set<() => void>();
 let saveTimer = 0;
 
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = 0;
+  try {
+    const { trips, items, chats, settings, cloud } = state;
+    localStorage.setItem(KEY, JSON.stringify({ trips, items, chats, settings, cloud }));
+  } catch {
+    /* quota or private mode: keep working in memory */
+  }
+}
 function persist() {
   clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => {
-    try {
-      const { trips, items, chats, settings, cloud } = state;
-      localStorage.setItem(KEY, JSON.stringify({ trips, items, chats, settings, cloud }));
-    } catch {
-      /* quota or private mode: keep working in memory */
-    }
-  }, 150);
+  saveTimer = window.setTimeout(save, 150);
 }
+// a change made just before the tab closes or reloads is not lost
+window.addEventListener("pagehide", () => saveTimer && save());
 
 export function getState(): State {
   return state;
@@ -223,12 +243,12 @@ export function resetAll() {
     /* ignore */
   }
   // keep the account: trips deleted here are then deleted in the account too
-  state = { ...load(), settings: { ...DEFAULT_SETTINGS, apiKey: state.settings.apiKey }, user: state.user, cloud: state.cloud };
+  state = { ...load(), settings: { ...DEFAULT_SETTINGS, aiProvider: state.settings.aiProvider }, user: state.user, cloud: state.cloud, ai: state.ai };
   persist();
   subs.forEach((f) => f());
 }
 
 /** Sign-out: remove this account's trips from the device (they stay in the account). */
 export function clearAccountData() {
-  setState({ trips: [], items: [], chats: {}, undo: {}, pending: {}, run: null, cloud: { ...EMPTY_CLOUD }, sync: { state: "idle" } });
+  setState({ trips: [], items: [], chats: {}, undo: {}, pending: {}, run: null, cloud: { ...EMPTY_CLOUD }, sync: { state: "idle" }, ai: null });
 }

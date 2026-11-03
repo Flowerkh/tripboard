@@ -50,7 +50,7 @@ export const TOOL_DEFS = [
         title: { type: "string" },
         season: { type: "string" },
         notice: { type: "string" },
-        dayLabels: { type: "object", additionalProperties: { type: "string" } },
+        dayLabels: { type: "array", description: "날짜별 짧은 테마", items: { type: "object", properties: { day: { type: "string", description: "YYYY-MM-DD" }, label: { type: "string" } }, required: ["day", "label"] } },
         recommendations: { type: "array", items: { type: "object", properties: { title: { type: "string" }, why: { type: "string" }, icon: { type: "string", enum: ICONS }, area: { type: "string" } }, required: ["title", "why"] } },
         legs: {
           type: "object",
@@ -167,7 +167,11 @@ export function makeExecutors(ctx: ToolCtx): Record<string, (input: Input) => un
       if (input.season) t.season = String(input.season).slice(0, 20);
       if (input.notice !== undefined) { t.notice = String(input.notice || "").slice(0, 300); bits.push("안내"); }
       if (input.dayLabels && typeof input.dayLabels === "object") {
-        for (const [k, v] of Object.entries(input.dayLabels as Record<string, unknown>)) if (/^\d{4}-\d{2}-\d{2}$/.test(k)) t.dayLabels[k] = String(v).slice(0, 40);
+        // a list of {day, label} (all AIs understand it); an older {day: label} map still works
+        const pairs: [string, unknown][] = Array.isArray(input.dayLabels)
+          ? (input.dayLabels as { day?: unknown; label?: unknown }[]).map((x) => [String(x?.day ?? ""), x?.label])
+          : Object.entries(input.dayLabels as Record<string, unknown>);
+        for (const [k, v] of pairs) if (/^\d{4}-\d{2}-\d{2}$/.test(k)) t.dayLabels[k] = String(v ?? "").slice(0, 40);
         bits.push("날짜별 테마");
       }
       if (Array.isArray(input.recommendations)) {

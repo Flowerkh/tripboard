@@ -14,7 +14,7 @@
  */
 import { createClient, type User } from "@supabase/supabase-js";
 import { SUPABASE_KEY, SUPABASE_URL } from "./config";
-import { clearAccountData, getState, setState, subscribe, toast, type Account, type CloudMeta } from "./store";
+import { clearAccountData, getState, setState, subscribe, toast, type Account, type AiStatus, type CloudMeta } from "./store";
 import type { Item, Trip } from "./types";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -22,6 +22,12 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 
 const RETURN_KEY = "tripboard:return-to";
+const PLAN_KEY = "tripboard:plan-after-login";
+
+/** New trip made while signed out: ask the AI to plan it right after the member signs in. */
+export function planAfterLogin(tripId: string) {
+  try { sessionStorage.setItem(PLAN_KEY, tripId); } catch { /* ignore */ }
+}
 const PUSH_DELAY = 1500;
 const PULL_EVERY = 60_000;
 
@@ -94,13 +100,32 @@ export function installCloud() {
     // the library also reports SIGNED_IN when a saved session loads; greet only after a real login
     if (event === "SIGNED_IN" && user && restoreRoute()) {
       toast(user.named ? `${user.name}님, 반가워요` : "반가워요! 설정에서 쓸 이름을 정해 주세요");
+      let planId: string | null = null;
+      try { planId = sessionStorage.getItem(PLAN_KEY); sessionStorage.removeItem(PLAN_KEY); } catch { /* ignore */ }
+      if (planId) setTimeout(() => import("./ai/run").then((m) => { if (getState().trips.some((t) => t.id === planId)) m.runAi(planId!, { kind: "plan" }); }), 600);
     }
-    if (user) setTimeout(() => sync(), 0);
+    if (user) setTimeout(() => { sync(); refreshAi(); }, 0);
+    else setState({ ai: null });
   });
   subscribe(onChange);
-  document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && sync());
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { sync(); refreshAi(); } });
   window.addEventListener("online", () => sync());
   setInterval(() => document.visibilityState === "visible" && sync(), PULL_EVERY);
+}
+
+// ---------- AI status ----------
+
+let aiLoading: Promise<void> | null = null;
+/** Which AIs the member may use, their limits and usage, and whether they are an admin. */
+export function refreshAi(): Promise<void> {
+  if (!getState().user) return Promise.resolve();
+  if (aiLoading) return aiLoading;
+  aiLoading = (async () => {
+    const { data, error } = await supabase.rpc("ai_my_status");
+    // ignore anything that is not a proper status, so a bad reply never breaks the screens that read it
+    if (!error && data && Array.isArray((data as AiStatus).providers) && getState().user) setState({ ai: data as AiStatus });
+  })().finally(() => (aiLoading = null));
+  return aiLoading;
 }
 
 // ---------- sync ----------

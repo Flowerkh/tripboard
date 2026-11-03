@@ -1,19 +1,11 @@
-import { useState } from "react";
 import { Icon } from "../components/Icon";
 import { ConfirmButton, go, Switch } from "../components/ui";
 import { loadSamples, resetAll, setSettings, toast, useApp } from "../lib/store";
 import type { ThemePref } from "../lib/types";
-import { checkKey, hasKey } from "../lib/ai/run";
 import { stopShareQuietly } from "../lib/share";
 import { logout, sync } from "../lib/cloud";
 import { Avatar, KakaoButton, NameEditor } from "../components/Account";
 import { ago } from "./ShareSheet";
-
-const MODELS: [string, string][] = [
-  ["claude-sonnet-5-5", "Sonnet 5.5 · 추천"],
-  ["claude-haiku-5-5", "Haiku 5.5 · 가장 저렴"],
-  ["claude-opus-5-5", "Opus 5.5 · 가장 똑똑함"],
-];
 
 function Mini({ mode }: { mode: ThemePref }) {
   const half = (cls: "l" | "d") => <span className={cls}><b /><i style={{ width: "80%" }} /><i style={{ width: "60%" }} /><u /></span>;
@@ -23,9 +15,6 @@ function Mini({ mode }: { mode: ThemePref }) {
 export function Settings() {
   const s = useApp();
   const { settings, trips } = s;
-  const [show, setShow] = useState(false);
-  const [key, setKey] = useState(settings.apiKey);
-  const [check, setCheck] = useState<{ state: "busy" | "ok" | "bad"; msg?: string } | null>(null);
   return (
     <main className="screen">
       <header style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -50,6 +39,7 @@ export function Settings() {
                 : `✓ 여행 ${s.trips.length}개가 계정에 저장돼 있어요${s.sync.at ? ` · ${ago(s.sync.at)}` : ""}`}
             </p>
             {s.sync.state === "error" && <button type="button" className="btn sm" style={{ alignSelf: "flex-start" }} onClick={() => sync()}>다시 시도</button>}
+            {s.ai?.is_admin && <button type="button" className="btn" onClick={() => go("/admin")}><Icon name="shield" size={18} />관리자 페이지</button>}
             <p className="muted" style={{ fontSize: 12 }}>같은 카카오 계정으로 로그인하면 휴대폰·PC 어디서나 같은 여행이 보여요. AI 대화 기록은 기기마다 따로예요.</p>
             <ConfirmButton className="btn sm" confirmText="한 번 더 누르면 로그아웃 · 이 기기에서 여행이 지워져요 (계정엔 남아요)" onConfirm={logout}>로그아웃</ConfirmButton>
           </div>
@@ -93,53 +83,51 @@ export function Settings() {
 
       <section className="sec">
         <h2>AI</h2>
-        <div className="card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-          <label className="label" htmlFor="api-key" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="key" size={15} />Claude API 키</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input id="api-key" className="input mono" type={show ? "text" : "password"} value={key} placeholder="sk-ant-..." autoComplete="off" spellCheck={false}
-              onChange={(e) => { setKey(e.target.value); setSettings({ apiKey: e.target.value.trim() }); setCheck(null); }} style={{ fontSize: 14 }} />
-            <button type="button" className="btn" onClick={() => setShow(!show)}>{show ? "숨기기" : "보기"}</button>
+        {!s.user ? (
+          <div className="card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+            <p style={{ fontSize: 14 }}>AI로 일정 짜기·고치기는 <b>카카오로 로그인한 회원</b>만 쓸 수 있어요. 키를 넣을 필요는 없어요.</p>
+            <KakaoButton label="카카오로 로그인하고 AI 쓰기" />
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn primary" style={{ flex: 1 }} disabled={!hasKey() || check?.state === "busy"}
-              onClick={async () => { setCheck({ state: "busy" }); const err = await checkKey(); setCheck(err ? { state: "bad", msg: err } : { state: "ok" }); }}>
-              {check?.state === "busy" ? "확인하는 중…" : "키 확인"}
-            </button>
-            {settings.apiKey && <button type="button" className="btn" onClick={() => { setKey(""); setSettings({ apiKey: "" }); setCheck(null); toast("API 키를 지웠어요 · 데모 모드"); }}>지우기</button>}
-          </div>
-          <p role="status" style={{ fontSize: 13, fontWeight: 700, color: check?.state === "ok" ? "var(--good)" : check?.state === "bad" ? "var(--bad)" : settings.apiKey ? "var(--ink)" : "var(--warn)" }}>
-            {check?.state === "ok" ? "✓ 키가 잘 돼요. 이제 AI가 실제 장소로 일정을 짜요."
-              : check?.state === "bad" ? `✕ ${check.msg}`
-              : settings.apiKey ? `저장된 키 ···${settings.apiKey.slice(-4)} · '키 확인'으로 잘 되는지 볼 수 있어요.`
-              : "지금은 데모 모드예요. 키를 붙여 넣으면 바로 저장돼요."}
-          </p>
-          <p className="muted" style={{ fontSize: 12 }}>
-            키는 이 브라우저에만 저장되고 Claude API로만 보내져요. 여러 사람이 쓰는 기기에서는 넣지 마세요. 키는 <a href="https://platform.claude.com" target="_blank" rel="noopener noreferrer">Claude 콘솔</a>에서 만들어요. 키 확인은 아주 작은 요청 한 번이라 비용이 거의 없어요.
-          </p>
-        </div>
-        <div className="card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-          <label className="label" htmlFor="proxy-url">AI 서버 주소 (선택 · 안드로이드 앱용)</label>
-          <input id="proxy-url" className="input mono" type="url" inputMode="url" value={settings.proxyUrl} placeholder="https://your-worker.workers.dev" autoComplete="off" spellCheck={false} onChange={(e) => setSettings({ proxyUrl: e.target.value })} style={{ fontSize: 14 }} />
-          <p className="muted" style={{ fontSize: 12 }}>넣으면 API 키 대신 이 서버로 요청을 보내요. 키를 서버에만 두는 방법은 README의 server 폴더 예시를 보세요.</p>
-        </div>
-        <div className="card list-card">
-          <div className="list-row">
-            <label htmlFor="plan-model">일정 짜기 모델<small>처음 짜기 · 계절 추천</small></label>
-            <select id="plan-model" className="input" style={{ width: "auto", height: 40, fontSize: 13 }} value={settings.planModel} onChange={(e) => setSettings({ planModel: e.target.value })}>
-              {MODELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-          </div>
-          <div className="list-row">
-            <label htmlFor="edit-model">대화 수정 모델<small>Haiku로 바꾸면 훨씬 싸요</small></label>
-            <select id="edit-model" className="input" style={{ width: "auto", height: 40, fontSize: 13 }} value={settings.editModel} onChange={(e) => setSettings({ editModel: e.target.value })}>
-              {MODELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-          </div>
-          <label className="list-row" htmlFor="confirm-ai">
-            <span>AI가 바꾸기 전에 확인 받기<small>끄면 바로 바꾸고 되돌리기를 남겨요</small></span>
-            <Switch id="confirm-ai" checked={settings.confirmAI} onChange={(v) => setSettings({ confirmAI: v })} label="AI가 바꾸기 전에 확인 받기" />
-          </label>
-        </div>
+        ) : (
+          <>
+            <div className="card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+              <span className="label">쓸 AI 고르기</span>
+              {!s.ai ? <p className="muted" style={{ fontSize: 13 }}>불러오는 중…</p>
+                : !s.ai.providers.length ? <p style={{ fontSize: 13, color: "var(--warn)", fontWeight: 700 }}>아직 쓸 수 있는 AI가 없어요. 관리자가 준비하는 중이에요.</p>
+                : (
+                  <div className="seg" role="radiogroup" aria-label="쓸 AI" style={{ gridTemplateColumns: `repeat(${s.ai.providers.length}, minmax(0, 1fr))` }}>
+                    {s.ai.providers.map((p) => {
+                      const on = (settings.aiProvider && s.ai!.providers.some((x) => x.id === settings.aiProvider) ? settings.aiProvider : s.ai!.default_provider) === p.id;
+                      return (
+                        <button key={p.id} type="button" role="radio" aria-checked={on} className={on ? "on" : ""} style={{ height: 52 }} onClick={() => setSettings({ aiProvider: p.id })}>
+                          {p.label}{p.id === s.ai!.default_provider && <small style={{ display: "block", fontSize: 11, opacity: 0.8 }}>기본</small>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              {s.ai && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <span className="muted">이번 달 AI 사용</span>
+                    <b className="mono">{s.ai.used_month} / {s.ai.monthly_limit}회 · 오늘 {s.ai.used_today} / {s.ai.daily_limit}회</b>
+                  </div>
+                  <div className="usage-bar" role="progressbar" aria-label="이번 달 AI 사용" aria-valuemin={0} aria-valuemax={s.ai.monthly_limit} aria-valuenow={s.ai.used_month}>
+                    <i style={{ width: `${Math.min(100, (s.ai.used_month / Math.max(1, s.ai.monthly_limit)) * 100)}%` }} className={s.ai.used_month >= s.ai.monthly_limit ? "full" : ""} />
+                  </div>
+                  {s.ai.paused && <p style={{ fontSize: 13, color: "var(--bad)", fontWeight: 700 }}>관리자가 이 계정의 AI 사용을 멈춰 두었어요.</p>}
+                  <p className="muted" style={{ fontSize: 12 }}>여행과 상관없는 말은 AI에게 보내지 않고 바로 안내해요. 이런 말은 횟수에 들어가지 않아요.</p>
+                </div>
+              )}
+            </div>
+            <div className="card list-card">
+              <label className="list-row" htmlFor="confirm-ai">
+                <span>AI가 바꾸기 전에 확인 받기<small>끄면 바로 바꾸고 되돌리기를 남겨요</small></span>
+                <Switch id="confirm-ai" checked={settings.confirmAI} onChange={(v) => setSettings({ confirmAI: v })} label="AI가 바꾸기 전에 확인 받기" />
+              </label>
+            </div>
+          </>
+        )}
       </section>
 
       <section className="sec">

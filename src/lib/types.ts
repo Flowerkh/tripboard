@@ -88,11 +88,8 @@ export type ThemePref = "system" | "light" | "dark";
 export interface Settings {
   theme: ThemePref;
   domesticMap: "kakao" | "naver";
-  apiKey: string;
-  /** Your own server that forwards requests to Claude (for the Android app). Used instead of apiKey when set. */
-  proxyUrl: string;
-  planModel: string;
-  editModel: string;
+  /** AI the member picked in settings ("" = the admin's default) */
+  aiProvider: "" | "claude" | "gemini" | "openai";
   confirmAI: boolean;
 }
 
