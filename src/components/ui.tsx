@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
+import { MAX_INPUT } from "../lib/ai/guard";
 
 export function go(path: string) {
   location.hash = path;
@@ -73,7 +74,8 @@ export function AskBar({ placeholder, onSend, disabled, autoFocus, id }: { place
       <label htmlFor={id}>
         <Icon name="sparkle" size={18} />
         <span className="sr">AI에게 말하기</span>
-        <input id={id} value={v} onChange={(e) => setV(e.target.value)} placeholder={listening ? "듣고 있어요…" : placeholder} autoFocus={autoFocus} enterKeyHint="send" autoComplete="off" disabled={disabled} />
+        <input id={id} value={v} maxLength={MAX_INPUT} onChange={(e) => setV(e.target.value.slice(0, MAX_INPUT))} placeholder={listening ? "듣고 있어요…" : placeholder} autoFocus={autoFocus} enterKeyHint="send" autoComplete="off" disabled={disabled} />
+        {v.length > MAX_INPUT - 50 && <span className="ask-count" aria-live="polite">{v.length}/{MAX_INPUT}</span>}
       </label>
       <button type="submit" className="icon-btn accent" aria-label="보내기" disabled={disabled || !v.trim()}>
         <Icon name="send" />

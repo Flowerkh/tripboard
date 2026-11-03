@@ -79,6 +79,8 @@ export interface ChatMsg {
   text: string;
   changes?: string[];
   at: number;
+  /** not about the trip (stopped by the app or refused by the AI): shown, but never sent to the AI again */
+  offTopic?: boolean;
 }
 
 export type ThemePref = "system" | "light" | "dark";

@@ -165,6 +165,9 @@ export function addChat(tripId: string, msg: Omit<ChatMsg, "id" | "at">): string
   });
   return id;
 }
+export function markChats(tripId: string, ids: string[], patch: Partial<ChatMsg>) {
+  setState((s) => ({ chats: { ...s.chats, [tripId]: (s.chats[tripId] ?? []).map((m) => (ids.includes(m.id) ? { ...m, ...patch } : m)) } }));
+}
 export function snapshot(tripId: string): Draft {
   const s = getState();
   const trip = s.trips.find((t) => t.id === tripId)!;

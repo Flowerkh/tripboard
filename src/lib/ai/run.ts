@@ -1,4 +1,5 @@
-import { addChat, commitDraft, getState, setPending, setState, snapshot, toast, type Draft } from "../store";
+import { addChat, commitDraft, getState, markChats, setPending, setState, snapshot, toast, type Draft } from "../store";
+import { MAX_INPUT, OFF_MARK, OFF_REPLY, offTopic } from "./guard";
 import { contextBlock, DAY_PROMPT, FLIGHT_PROMPT, GEO_PROMPT, PLAN_PROMPT, RECS_PROMPT, RULES } from "./prompts";
 import { makeExecutors, TOOL_DEFS } from "./tools";
 import { AiError, readTicket, runAgent, testConn, type Msg } from "./claude";
@@ -15,7 +16,8 @@ export const hasKey = () => {
 };
 
 function history(tripId: string, text: string): Msg[] {
-  const list = (getState().chats[tripId] ?? []).filter((m) => m.role !== "note" && m.text).slice(-10);
+  // off-topic exchanges are never sent again; only the last few messages travel with each request
+  const list = (getState().chats[tripId] ?? []).filter((m) => m.role !== "note" && m.text && !m.offTopic).slice(-6);
   const msgs: Msg[] = [];
   for (const m of list) {
     const role = m.role === "user" ? "user" : "assistant";
@@ -36,6 +38,15 @@ const SHOWN: Record<string, string> = { plan: "전체 일정을 짜줘", recs: "
 
 /** One AI turn: works on a copy of the trip, then applies it (or waits for approval). */
 export async function runAi(tripId: string, mode: Mode): Promise<void> {
+  if (mode.kind === "chat") {
+    mode = { ...mode, text: mode.text.slice(0, MAX_INPUT) };
+    if (offTopic(mode.text)) {
+      // A: answered by the app, no AI call, no tokens
+      addChat(tripId, { role: "user", text: mode.text, offTopic: true });
+      addChat(tripId, { role: "assistant", text: OFF_REPLY, offTopic: true });
+      return;
+    }
+  }
   const s = getState();
   if (s.run?.error) setState({ run: null }); // a failed run left on screen shouldn't block a new one
   else if (s.run) {
@@ -58,7 +69,7 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
   ctl = new AbortController();
   const signal = ctl.signal;
   const shown = mode.kind === "chat" ? mode.text : mode.kind === "day" ? `${mode.day} 일정을 짜줘` : SHOWN[mode.kind];
-  addChat(tripId, { role: "user", text: shown });
+  const userMsgId = addChat(tripId, { role: "user", text: shown });
   setState({ run: { tripId, kind: mode.kind === "plan" ? "plan" : mode.kind === "recs" ? "recs" : mode.kind === "geo" ? "geo" : "chat", status: mode.kind === "geo" ? "위치 찾는 중…" : "생각하는 중…", startedAt: Date.now(), stage: 0 } });
   const onStage = (name: string) =>
     setState((st) => (st.run ? { run: { ...st.run, stage: Math.max(st.run.stage, name === "update_trip" ? 1 : 2), status: name === "add_items" ? "일정 넣는 중…" : "여행 정보 정리 중…" } } : {}));
@@ -84,7 +95,7 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
         messages,
         tools: TOOL_DEFS,
         run: makeExecutors({ draft, changes, onStage }),
-        maxTokens: bigJob ? 16000 : 4000,
+        maxTokens: bigJob ? 16000 : 1500, // C: a chat reply can't run long even if something slips through
         signal,
       });
     }
@@ -99,9 +110,13 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
     return;
   }
   ctl = null;
+  // B: the AI marked the request as not about the trip
+  const refused = text.trimStart().startsWith(OFF_MARK);
+  if (refused) text = text.trimStart().slice(OFF_MARK.length).trim() || OFF_REPLY;
   if (!text) text = changes.length ? "바꿨어요." : "답을 만들지 못했어요. 조금 다르게 말해 주세요.";
   const shortList = changes.length > 14 ? [...changes.slice(0, 13), `외 ${changes.length - 13}개`] : changes;
-  const msgId = addChat(tripId, { role: "assistant", text, changes: shortList });
+  const msgId = addChat(tripId, { role: "assistant", text, changes: shortList, ...(refused && !changes.length ? { offTopic: true } : {}) });
+  if (refused && !changes.length) markChats(tripId, [userMsgId], { offTopic: true }); // D: keep it out of later requests
   if (changes.length) {
     const confirm = getState().settings.confirmAI && mode.kind === "chat";
     if (confirm) setPending(tripId, { draft, before, changes: shortList, msgId });
