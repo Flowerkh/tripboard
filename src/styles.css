@@ -367,3 +367,5 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.5; resize: non
 .avatar-btn .dot.bad { background: var(--bad); }
 .geo-chip { display: inline-flex; align-items: center; gap: 6px; }
 .geo-chip:disabled { opacity: 0.85; cursor: progress; }
+.input[aria-invalid="true"] { border-color: var(--bad); box-shadow: 0 0 0 3px var(--bad-soft); }
+.time24 { letter-spacing: 0.02em; }

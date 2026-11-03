@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { stopShareQuietly } from "../lib/share";
 import { fallbackView, MapView } from "../components/MapView";
-import { AskBar, ConfirmButton, go, Sheet } from "../components/ui";
+import { AskBar, ConfirmButton, go, Sheet, TimeInput } from "../components/ui";
 import { applyPending, discardPending, hasKey, runAi, stopAi } from "../lib/ai/run";
 import { fmtDay, normTime, uid } from "../lib/dates";
 import { dirLink, mapLink, providerFor, providerName } from "../lib/links";
@@ -140,15 +140,15 @@ export function ItemSheet({ trip, itemId, preset, onClose, onAsk }: {
             <MapView pins={[{ id: orig.id, lat: orig.lat, lng: orig.lng, n: n || "•", status: orig.status, done: orig.done }]} fallback={fallbackView(trip.country)} interactive={false} label={`${orig.title} 위치`} />
           </div>
         )}
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 84px 84px", gap: 8 }}>
           <div className="field" style={{ gap: 5 }}>
             <label className="label" htmlFor="ie-day">날짜</label>
             <select id="ie-day" className="input" style={{ padding: "0 8px", fontSize: 14 }} value={f.day} onChange={(e) => set({ day: e.target.value })}>
               {days.map((d, i) => <option key={d} value={d}>{i + 1}일차 {fmtDay(d)}</option>)}
             </select>
           </div>
-          <div className="field" style={{ gap: 5 }}><label className="label" htmlFor="ie-start">시작</label><input id="ie-start" type="time" required className="input mono" style={{ padding: "0 8px" }} value={f.start} onChange={(e) => set({ start: e.target.value })} /></div>
-          <div className="field" style={{ gap: 5 }}><label className="label" htmlFor="ie-end">끝</label><input id="ie-end" type="time" className="input mono" style={{ padding: "0 8px" }} value={f.end} onChange={(e) => set({ end: e.target.value })} /></div>
+          <div className="field" style={{ gap: 5 }}><label className="label" htmlFor="ie-start">시작</label><TimeInput id="ie-start" required style={{ padding: "0 10px" }} value={f.start} onChange={(v) => set({ start: v })} /></div>
+          <div className="field" style={{ gap: 5 }}><label className="label" htmlFor="ie-end">끝</label><TimeInput id="ie-end" placeholder="--:--" style={{ padding: "0 10px" }} value={f.end} onChange={(v) => set({ end: v })} /></div>
         </div>
         <div className="field" style={{ gap: 6 }}>
           <span className="label">상태</span>

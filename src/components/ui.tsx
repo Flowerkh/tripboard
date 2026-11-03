@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
 
@@ -103,5 +103,58 @@ export function ConfirmButton({ className, children, confirmText, onConfirm }: {
     <button type="button" className={`${className ?? ""}${armed ? " armed" : ""}`} aria-live="polite" onClick={() => (armed ? onConfirm() : setArmed(true))}>
       {armed ? <><b aria-hidden="true">👆</b>{confirmText}</> : children}
     </button>
+  );
+}
+
+/** "930" → "09:30", "1430" / "14:30" / "14" → "14:30" / "14:00"; "" stays empty; null when it isn't a time. */
+export function parseTime24(raw: string): string | null {
+  const s = raw.trim();
+  if (!s) return "";
+  let h: number, m: number;
+  if (s.includes(":")) {
+    const [a, b] = s.split(":");
+    if (!/^\d{1,2}$/.test(a) || !/^\d{0,2}$/.test(b ?? "")) return null;
+    h = Number(a);
+    m = Number(b || 0);
+  } else {
+    if (!/^\d{1,4}$/.test(s)) return null;
+    h = Number(s.length <= 2 ? s : s.length === 3 ? s.slice(0, 1) : s.slice(0, 2));
+    m = Number(s.length <= 2 ? 0 : s.slice(-2));
+  }
+  if (h > 23 || m > 59) return null;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * 24-hour time box (00:00–23:59). The browser's own time picker follows the phone's
+ * language and shows 오전/오후, so times are typed here instead: "1430" becomes "14:30".
+ */
+export function TimeInput({ id, value, onChange, required, style, placeholder = "14:30", label }: {
+  id?: string; value: string; onChange: (v: string) => void; required?: boolean; style?: CSSProperties; placeholder?: string; label?: string;
+}) {
+  const [text, setText] = useState(value);
+  const [bad, setBad] = useState(false);
+  useEffect(() => { setText(value); setBad(false); }, [value]);
+  const commit = () => {
+    const v = parseTime24(text);
+    if (v === null) return setBad(true);
+    setBad(false);
+    setText(v);
+    if (v !== value) onChange(v);
+  };
+  return (
+    <input id={id} aria-label={label} className="input mono time24" type="text" inputMode="numeric" autoComplete="off" spellCheck={false} maxLength={5}
+      placeholder={placeholder} required={required} aria-invalid={bad || undefined} style={style} value={text}
+      onChange={(e) => {
+        let t = e.target.value.replace(/[^\d:]/g, "");
+        if (/^\d{4}$/.test(t)) t = `${t.slice(0, 2)}:${t.slice(2)}`; // 4 digits are unambiguous: show the colon right away
+        setText(t);
+        setBad(false);
+        const v = parseTime24(t);
+        if (v && t.length === 5 && v !== value) onChange(v);
+      }}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+    />
   );
 }

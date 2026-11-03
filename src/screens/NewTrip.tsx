@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
-import { go, Switch } from "../components/ui";
+import { go, Switch, TimeInput } from "../components/ui";
 import { addDays, durLabel, fmtDay, parseDay, pad, seasonOf, today } from "../lib/dates";
 import { readFlights, runAi, hasKey } from "../lib/ai/run";
 import { createTrip, toast, updateTrip, useApp } from "../lib/store";
@@ -219,11 +219,27 @@ function FlightCard({ label, f, onChange, date }: { label: string; f: Flight; on
         <div className="card" style={{ padding: 12, display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 10 }}>
           <div className="field"><label className="label" htmlFor={`${id}-from`}>출발 공항</label><input id={`${id}-from`} className="input mono" value={f.from} placeholder="ICN" onChange={(e) => onChange({ ...f, from: e.target.value.toUpperCase().trim() })} /></div>
           <div className="field"><label className="label" htmlFor={`${id}-to`}>도착 공항</label><input id={`${id}-to`} className="input mono" value={f.to} placeholder="KIX" onChange={(e) => onChange({ ...f, to: e.target.value.toUpperCase().trim() })} /></div>
-          <div className="field"><label className="label" htmlFor={`${id}-dep`}>출발 (현지)</label><input id={`${id}-dep`} className="input" type="datetime-local" value={f.dep} onChange={(e) => onChange({ ...f, dep: e.target.value })} /></div>
-          <div className="field"><label className="label" htmlFor={`${id}-arr`}>도착 (현지)</label><input id={`${id}-arr`} className="input" type="datetime-local" value={f.arr} onChange={(e) => onChange({ ...f, arr: e.target.value })} /></div>
+          <DateTime24 id={`${id}-dep`} label="출발 (현지)" value={f.dep} fallbackDate={date} onChange={(v) => onChange({ ...f, dep: v })} />
+          <DateTime24 id={`${id}-arr`} label="도착 (현지)" value={f.arr} fallbackDate={f.dep.slice(0, 10) || date} onChange={(v) => onChange({ ...f, arr: v })} />
           <div className="field" style={{ gridColumn: "1 / -1" }}><label className="label" htmlFor={`${id}-no`}>편명 (선택)</label><input id={`${id}-no`} className="input mono" value={f.no} onChange={(e) => onChange({ ...f, no: e.target.value.toUpperCase().trim() })} /></div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Date + 24-hour time for a flight ("YYYY-MM-DDTHH:MM"), instead of datetime-local which shows 오전/오후. */
+function DateTime24({ id, label, value, fallbackDate, onChange }: { id: string; label: string; value: string; fallbackDate: string; onChange: (v: string) => void }) {
+  const d = value.slice(0, 10);
+  const t = value.slice(11, 16);
+  const join = (day: string, time: string) => (day && time ? `${day}T${time}` : day ? `${day}T${t || "00:00"}` : "");
+  return (
+    <div className="field" style={{ gridColumn: "1 / -1" }}>
+      <label className="label" htmlFor={`${id}-t`}>{label}</label>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)", gap: 8 }}>
+        <input id={`${id}-d`} aria-label={`${label} 날짜`} className="input" type="date" value={d} onChange={(e) => onChange(join(e.target.value, t))} />
+        <TimeInput id={`${id}-t`} value={t} placeholder="14:30" onChange={(v) => onChange(v ? join(d || fallbackDate, v) : d ? `${d}T00:00` : "")} />
+      </div>
     </div>
   );
 }
@@ -306,8 +322,8 @@ function StepDomestic({ w, set }: StepProps) {
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div className="field"><label className="label" htmlFor="dm-arr">첫날 {w.city || "현지"} 도착</label><input id="dm-arr" type="time" className="input mono" value={w.arrTime} onChange={(e) => set({ arrTime: e.target.value })} /></div>
-        <div className="field"><label className="label" htmlFor="dm-dep">마지막 날 {w.city || "현지"} 출발</label><input id="dm-dep" type="time" className="input mono" value={w.depTime} onChange={(e) => set({ depTime: e.target.value })} /></div>
+        <div className="field"><label className="label" htmlFor="dm-arr">첫날 {w.city || "현지"} 도착</label><TimeInput id="dm-arr" placeholder="10:30" value={w.arrTime} onChange={(v) => set({ arrTime: v })} /></div>
+        <div className="field"><label className="label" htmlFor="dm-dep">마지막 날 {w.city || "현지"} 출발</label><TimeInput id="dm-dep" placeholder="18:00" value={w.depTime} onChange={(v) => set({ depTime: v })} /></div>
       </div>
       <p className="muted" style={{ fontSize: 12, marginTop: -6 }}>시간을 아직 모르면 비워 두세요. AI가 보통 시간으로 잡아 둘게요.</p>
     </>
