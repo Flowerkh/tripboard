@@ -16,8 +16,9 @@ export interface UsageRow {
   input_tokens: number; output_tokens: number; cache_read: number; cache_write: number; cost_usd: number; status: string; topic: string | null; snippet: string | null;
 }
 export interface Member {
-  user_id: string; name: string; avatar: string; created_at: string; last_sign_in_at: string | null; trips: number;
+  user_id: string; name: string; avatar: string; created_at: string; last_sign_in_at: string | null; trips: number; shares: number;
   used_today: number; used_month: number; cost_month: number; daily: number | null; monthly: number | null; paused: boolean; is_admin: boolean;
+  note: string; banned_until: string | null; ban_reason: string;
 }
 export interface Topic { name: string; on: boolean; words: string[] }
 export interface FilterConfig { stage1: boolean; stage2: boolean; reply: string; topics: Topic[]; allow: string[] }
@@ -54,6 +55,23 @@ export async function saveLimits(uid: string, v: { daily: number | null; monthly
   must(await supabase.from("member_limits").upsert({ user_id: uid, ...v, updated_at: new Date().toISOString() }, { onConflict: "user_id" }));
 }
 export const resetMonth = async (uid: string) => must(await supabase.rpc("admin_reset_month", { p_user: uid }));
+export async function saveNote(uid: string, note: string) {
+  must(await supabase.from("member_limits").upsert({ user_id: uid, note: note.trim().slice(0, 300), updated_at: new Date().toISOString() }, { onConflict: "user_id" }));
+}
+
+/** Nickname, log out everywhere, ban, unban and delete need the Auth admin API: the "account" server function does them. */
+export async function accountAction(action: "rename" | "sign_out" | "ban" | "unban" | "delete", userId: string, extra: Record<string, unknown> = {}) {
+  const { data } = await supabase.auth.getSession();
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/account`, {
+    method: "POST",
+    headers: { "content-type": "application/json", apikey: SUPABASE_KEY, authorization: `Bearer ${data.session?.access_token ?? ""}` },
+    body: JSON.stringify({ action, user_id: userId, ...extra }),
+  }).catch(() => null);
+  if (!res) throw new Error("서버에 연결하지 못했어요.");
+  const out = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string } & Record<string, unknown>;
+  if (!res.ok || !out.ok) throw new Error(out.error ?? `오류 ${res.status}`);
+  return out;
+}
 
 export const settings = async () => {
   const s = must(await supabase.from("ai_settings").select("default_provider,daily_limit,monthly_limit,budget_usd,filter").eq("id", 1).single()) as Settings;
@@ -99,5 +117,7 @@ export const shortWhen = (iso: string) => {
   const d = new Date(Date.parse(iso) + 9 * 3600e3);
   return `${d.getUTCMonth() + 1}.${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 };
+/** "11.11까지", or "무기한" for a ban with no end */
+export const banLabel = (iso: string) => (new Date(iso).getUTCFullYear() - new Date().getUTCFullYear() > 50 ? "무기한" : `${shortWhen(iso).split(" ")[0]}까지`);
 export const PROVIDER_COLOR: Record<string, string> = { gemini: "var(--s-gemini)", claude: "var(--s-claude)", openai: "var(--s-openai)" };
 export const PROVIDER_LABEL: Record<string, string> = { claude: "Claude", gemini: "Gemini", openai: "OpenAI" };

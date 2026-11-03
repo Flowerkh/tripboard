@@ -64,9 +64,14 @@ export async function loginWithKakao() {
   if (error) toast(`카카오 로그인을 시작하지 못했어요: ${error.message}`);
 }
 
+/** True while this app itself signs out, so the listener can tell it from a logout done elsewhere. */
+let ownSignOut = false;
+
 export async function logout() {
   await flush().catch(() => {});
+  ownSignOut = true;
   await supabase.auth.signOut().catch(() => {});
+  ownSignOut = false;
   clearAccountData();
   setState({ user: null });
   toast("로그아웃했어요 · 다시 로그인하면 여행이 돌아와요");
@@ -80,7 +85,39 @@ function readRedirectError() {
   ["error", "error_code", "error_description", "code", "state"].forEach((k) => q.delete(k));
   const rest = q.toString();
   history.replaceState(history.state, "", `${location.pathname}${rest ? `?${rest}` : ""}${location.hash}`);
-  setTimeout(() => toast(`로그인하지 못했어요: ${err}`), 300);
+  const msg = /banned/i.test(err ?? "") ? "이용이 정지된 계정이라 로그인할 수 없어요." : `로그인하지 못했어요: ${err}`;
+  setTimeout(() => toast(msg), 300);
+}
+
+/**
+ * The admin can log a member out everywhere, ban them, or delete them. The saved login then stops
+ * working on the server; ask the server when the app opens or comes back, and sign out here if so.
+ */
+async function verifySession() {
+  if (!getState().user) return;
+  const { error } = await supabase.auth.getUser();
+  if (error && (error.status === 401 || error.status === 403)) await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+}
+
+/** Deletes the member's own account (trips, share links, Kakao link) on the server, then signs out here. */
+export async function deleteMyAccount(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) return "다시 로그인해 주세요.";
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/account`, {
+    method: "POST",
+    headers: { "content-type": "application/json", apikey: SUPABASE_KEY, authorization: `Bearer ${data.session.access_token}` },
+    body: JSON.stringify({ action: "delete_me" }),
+  }).catch(() => null);
+  if (!res) return "인터넷 연결을 확인해 주세요.";
+  const out = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  if (!res.ok || !out.ok) return out.error ?? `탈퇴하지 못했어요 (오류 ${res.status})`;
+  ownSignOut = true;
+  await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+  ownSignOut = false;
+  clearAccountData();
+  setState({ user: null });
+  toast("탈퇴했어요. 그동안 트립보드를 써 주셔서 고마워요");
+  return null;
 }
 
 /** True right after coming back from the Kakao login page (set just before leaving). */
@@ -106,9 +143,15 @@ export function installCloud() {
     }
     if (user) setTimeout(() => { sync(); refreshAi(); }, 0);
     else setState({ ai: null });
+    // logged out from elsewhere (admin, ban, deleted account): this device's copy of the account's trips goes too
+    if (event === "SIGNED_OUT" && prev && !ownSignOut) {
+      clearAccountData();
+      toast("로그인이 해제돼서 이 기기에서 여행을 지웠어요");
+    }
+    if (event === "INITIAL_SESSION" && user) setTimeout(verifySession, 0);
   });
   subscribe(onChange);
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { sync(); refreshAi(); } });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { verifySession(); sync(); refreshAi(); } });
   window.addEventListener("online", () => sync());
   setInterval(() => document.visibilityState === "visible" && sync(), PULL_EVERY);
 }

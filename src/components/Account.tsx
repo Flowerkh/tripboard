@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { loginWithKakao, NAME_MAX, setDisplayName } from "../lib/cloud";
-import { toast, type Account } from "../lib/store";
+import { deleteMyAccount, loginWithKakao, NAME_MAX, setDisplayName } from "../lib/cloud";
+import { getState, toast, type Account } from "../lib/store";
+import { Icon } from "./Icon";
+import { ConfirmButton, go, Sheet } from "./ui";
 
 /** Kakao login button (yellow, per Kakao's login button guide). */
 export function KakaoButton({ small, label = "카카오로 로그인" }: { small?: boolean; label?: string }) {
@@ -63,5 +65,48 @@ export function NameEditor({ user }: { user: Account }) {
       {!user.named && !err && <p className="muted" style={{ fontSize: 12 }}>카카오 닉네임을 받지 않아서 지금은 '카카오 사용자'로 보여요. 정한 이름은 계정에 저장돼서 다른 기기에서도 같아요.</p>}
       {err && <p role="alert" style={{ color: "var(--bad)", fontSize: 13, fontWeight: 700 }}>{err}</p>}
     </form>
+  );
+}
+
+/** Settings → 탈퇴하기: says what goes, then deletes the account on the server (two presses). */
+export function WithdrawSheet({ onClose }: { onClose: () => void }) {
+  const { trips } = getState();
+  const shares = trips.filter((t) => t.share).length;
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const gone = [
+    "카카오 계정 연결과 트립보드 계정",
+    `계정에 저장된 여행 ${trips.length}개 (이 기기와 다른 기기 모두)`,
+    ...(shares ? [`내가 만든 공유 링크 ${shares}개 · 받은 사람도 더 이상 못 봐요`] : []),
+    "AI 대화 기록",
+  ];
+  const run = async () => {
+    setBusy(true);
+    setErr("");
+    const e = await deleteMyAccount();
+    setBusy(false);
+    if (e) { setErr(e); return; }
+    onClose();
+    go("/");
+  };
+  return (
+    <Sheet onClose={busy ? () => {} : onClose} label="탈퇴하기">
+      <div className="sheet-head">
+        <b style={{ flex: 1, fontSize: 18 }}>트립보드에서 탈퇴할까요?</b>
+        <button type="button" className="icon-btn" aria-label="닫기" disabled={busy} onClick={onClose}><Icon name="close" size={18} /></button>
+      </div>
+      <div className="sheet-body">
+        <div className="withdraw-list">
+          <b>바로 지워지고 되돌릴 수 없어요</b>
+          <ul>{gone.map((g) => <li key={g}>{g}</li>)}</ul>
+        </div>
+        <p className="muted" style={{ fontSize: 13 }}>AI 사용 기록은 이름 없이 통계로만 남아요. 같은 카카오 계정으로 다시 가입하면 새 계정으로 시작해요.</p>
+        {err && <p role="alert" style={{ color: "var(--bad)", fontSize: 14, fontWeight: 600 }}>{err}</p>}
+        {busy
+          ? <button type="button" className="btn danger armed" disabled>탈퇴하는 중…</button>
+          : <ConfirmButton className="btn danger" confirmText="한 번 더 누르면 탈퇴돼요" onConfirm={run}>탈퇴하기</ConfirmButton>}
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>계속 쓸게요</button>
+      </div>
+    </Sheet>
   );
 }

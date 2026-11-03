@@ -4,7 +4,8 @@ import { loadSamples, resetAll, setSettings, toast, useApp } from "../lib/store"
 import type { ThemePref } from "../lib/types";
 import { stopShareQuietly } from "../lib/share";
 import { logout, sync } from "../lib/cloud";
-import { Avatar, KakaoButton, NameEditor } from "../components/Account";
+import { Avatar, KakaoButton, NameEditor, WithdrawSheet } from "../components/Account";
+import { useState } from "react";
 import { ago } from "./ShareSheet";
 
 function Mini({ mode }: { mode: ThemePref }) {
@@ -15,6 +16,7 @@ function Mini({ mode }: { mode: ThemePref }) {
 export function Settings() {
   const s = useApp();
   const { settings, trips } = s;
+  const [withdraw, setWithdraw] = useState(false);
   return (
     <main className="screen">
       <header style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -42,6 +44,10 @@ export function Settings() {
             {s.ai?.is_admin && <button type="button" className="btn" onClick={() => go("/admin")}><Icon name="shield" size={18} />관리자 페이지</button>}
             <p className="muted" style={{ fontSize: 12 }}>같은 카카오 계정으로 로그인하면 휴대폰·PC 어디서나 같은 여행이 보여요. AI 대화 기록은 기기마다 따로예요.</p>
             <ConfirmButton className="btn sm" confirmText="한 번 더 누르면 로그아웃 · 이 기기에서 여행이 지워져요 (계정엔 남아요)" onConfirm={logout}>로그아웃</ConfirmButton>
+            {s.ai?.is_admin
+              ? <p className="muted" style={{ fontSize: 12, textAlign: "center" }}>관리자 계정은 탈퇴할 수 없어요</p>
+              : <button type="button" className="link-btn quiet" style={{ alignSelf: "center" }} onClick={() => setWithdraw(true)}>탈퇴하기</button>}
+            {withdraw && <WithdrawSheet onClose={() => setWithdraw(false)} />}
           </div>
         ) : (
           <div className="card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>

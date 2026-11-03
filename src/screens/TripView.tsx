@@ -175,7 +175,7 @@ export function TripView({ id }: { id: string }) {
 
       <div className="askbar-wrap">
         {s.user ? (
-          <AskBar id="trip-ask" placeholder={list.length ? "말로 고치기 · 점심은 국밥집으로" : `예: ${dayIdx + 1}일차는 바다 위주로 짜줘`} onSend={ask} disabled={!!s.run} />
+          <AskBar id="trip-ask" placeholder={list.length ? "말로 고치기 · 점심은 국밥집으로" : `예: ${dayIdx + 1}일차는 바다 위주로 짜줘`} onSend={ask} disabled={!!s.run} onHistory={(s.chats[id] ?? []).some((c) => c.role !== "note") ? () => setChat(true) : undefined} />
         ) : (
           <div className="login-bar"><span>AI에게 말로 일정을 고치려면</span><KakaoButton small label="카카오로 로그인" /></div>
         )}
