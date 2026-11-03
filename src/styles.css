@@ -28,8 +28,9 @@
   --live-ink: #ffb4b4;
   --scrim: rgba(10, 16, 30, 0.42);
   --shadow: 0 1px 2px rgba(20, 32, 55, 0.06), 0 8px 24px rgba(20, 32, 55, 0.08);
-  --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", sans-serif;
+  /* digits and codes in Plex Mono; any Korean inside falls through to Pretendard, not an old system font */
+  --mono: "IBM Plex Mono", "Pretendard Variable", Pretendard, ui-monospace, "SFMono-Regular", Menlo, monospace;
   color-scheme: light;
 }
 :root[data-theme="dark"] {

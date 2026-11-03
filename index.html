@@ -24,7 +24,7 @@
       /* Launch screen (design: 로딩 A · 브랜드). Inline so it shows before any other file arrives. */
       #splash { --sp-bg: #f3f5f9; --sp-ink: #142037; --sp-muted: #556179; --sp-line: #d9e0ea; --sp-accent: #2357d8; --sp-tile: #142037; --sp-tile-line: transparent; --sp-shadow: 0 1px 2px rgba(20,32,55,0.06), 0 8px 24px rgba(20,32,55,0.08);
         position: fixed; inset: 0; z-index: 2500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 0 32px 40px;
-        background: var(--sp-bg); color: var(--sp-ink); font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif; text-align: center; transition: opacity 0.25s ease; }
+        background: var(--sp-bg); color: var(--sp-ink); font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; text-align: center; transition: opacity 0.25s ease; }
       [data-theme="dark"] #splash { --sp-bg: #0e1420; --sp-ink: #e6ebf4; --sp-muted: #9aa7be; --sp-line: #28334d; --sp-accent: #7499ff; --sp-tile: #1c2945; --sp-tile-line: #28334d; --sp-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35); }
       #splash.out { opacity: 0; pointer-events: none; }
       #splash .sp-icon { width: 108px; height: 108px; box-sizing: border-box; border-radius: 30px; background: var(--sp-tile); border: 1px solid var(--sp-tile-line); box-shadow: var(--sp-shadow); display: flex; align-items: center; justify-content: center; }
@@ -39,8 +39,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- fonts load without holding up the first paint -->
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-    <noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" /></noscript>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" /></noscript>
   </head>
   <body>
     <div id="splash" role="status" aria-label="트립보드 불러오는 중">
