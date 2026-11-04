@@ -150,3 +150,10 @@
 .adm-stats small { font-size: 12px; color: var(--muted); }
 .adm-stats b { font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .adm-stats i { font-style: normal; font-size: 12px; font-weight: 500; color: var(--muted); }
+
+/* AI usage log */
+.adm-logbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.adm-select select { min-height: 40px; padding: 0 34px 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; }
+.adm-logsum { margin: 0; padding: 14px 16px; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+.adm-logsum b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.adm-table small.mono { font-size: 11px; }

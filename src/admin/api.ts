@@ -11,6 +11,8 @@ export const FEATURES: [slot: string, label: string, hint: string][] = [
   ["ticket", "항공권 사진 읽기", "e-티켓에서 비행 정보"],
 ];
 
+export const FEATURE_LABEL: Record<string, string> = { chat: "대화로 고치기", plan: "일정 처음 짜기", day: "하루 일정 짜기", geo: "위치 채우기", recs: "계절 추천", ticket: "항공권 읽기" };
+
 export interface UsageRow {
   at: string; user_id: string | null; request_id: string | null; first_round: boolean; feature: string; provider: string | null; model: string | null;
   input_tokens: number; output_tokens: number; cache_read: number; cache_write: number; cost_usd: number; status: string; topic: string | null; snippet: string | null;

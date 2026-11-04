@@ -1,12 +1,11 @@
 /** 회원 › AI 사용 · 한도: each member's requests, tokens and cost, their limits, and pausing their AI. */
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "../lib/store";
-import { banLabel, big, kstStart, memberUsage, money, PROVIDER_LABEL, resetMonth, saveLimits, saveSettings, shortWhen, usageSince, type Member, type UsageRow } from "./api";
+import { banLabel, big, kstStart, money, resetMonth, saveLimits, saveSettings, shortWhen, usageSince, type Member, type UsageRow } from "./api";
 import { Banner, day, MemberCell, PanelHead, Toolbar, useMembers } from "./memberBits";
 import { MonthBar } from "./Usage";
 
 type Filter = "all" | "active" | "full" | "paused";
-const FEATURE: Record<string, string> = { chat: "대화로 고치기", plan: "일정 처음 짜기", day: "하루 일정 짜기", geo: "위치 채우기", recs: "계절 추천", ticket: "항공권 읽기" };
 const tokensOf = (r: UsageRow) => r.input_tokens + r.cache_read + r.cache_write + r.output_tokens;
 
 function Num({ id, label, value, onChange }: { id: string; label: string; value: number; onChange: (v: number) => void }) {
@@ -107,9 +106,7 @@ function AiPanel({ m, tokens, defs, onClose, onSaved }: { m: Member; tokens: num
   const [daily, setDaily] = useState(m.daily ?? defs.daily);
   const [monthly, setMonthly] = useState(m.monthly ?? defs.monthly);
   const [paused, setPaused] = useState(m.paused);
-  const [recent, setRecent] = useState<UsageRow[] | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { memberUsage(m.user_id).then(setRecent).catch(() => setRecent([])); }, [m.user_id]);
   const lim = custom ? { daily, monthly } : defs;
   const full = m.used_month >= lim.monthly || m.used_today >= lim.daily;
 
@@ -165,16 +162,9 @@ function AiPanel({ m, tokens, defs, onClose, onSaved }: { m: Member; tokens: num
       </section>
 
       <section className="adm-sec" aria-labelledby="sec-recent">
-        <h3 id="sec-recent" className="adm-sec-title">최근 AI 사용</h3>
-        {!recent ? <p className="adm-muted">불러오는 중…</p> : !recent.length ? <p className="adm-muted" style={{ fontSize: 13 }}>아직 AI를 쓰지 않았어요.</p> : recent.map((r, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "8px 0", borderTop: i ? "1px solid var(--line)" : 0, fontSize: 13 }}>
-            <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <span style={{ fontWeight: 600 }}>{r.status === "blocked_app" ? `걸러짐 · ${r.topic}` : r.status === "blocked_ai" ? "AI가 거절" : r.status === "limit" ? "한도 초과로 막힘" : r.status === "error" ? "오류" : FEATURE[r.feature] ?? r.feature}</span>
-              <span className="adm-muted" style={{ fontSize: 12 }}>{shortWhen(r.at)} · {r.model ? `${PROVIDER_LABEL[r.provider ?? ""] ?? ""} ${r.model}` : r.status === "blocked_app" ? "앱에서 막음" : "-"}</span>
-            </span>
-            <span className="mono adm-muted" style={{ textAlign: "right", whiteSpace: "nowrap" }}>{big(tokensOf(r))} 토큰<br />{money(Number(r.cost_usd))}</span>
-          </div>
-        ))}
+        <h3 id="sec-recent" className="adm-sec-title">사용 기록</h3>
+        <p className="adm-muted" style={{ fontSize: 13 }}>요청마다 쓴 토큰과 비용은 AI 사용 기록에서 볼 수 있어요.</p>
+        <a className="btn" href={`#/admin/logs/${m.user_id}`}>이 회원의 AI 사용 기록 보기</a>
       </section>
     </aside>
   );

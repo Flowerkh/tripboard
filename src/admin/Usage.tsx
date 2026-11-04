@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { big, counted, kstDayKey, kstHour, kstStart, members, money, PROVIDER_COLOR, PROVIDER_LABEL, settings, usageSince, type Member, type UsageRow } from "./api";
+import { big, counted, FEATURE_LABEL, kstDayKey, kstHour, kstStart, members, money, PROVIDER_COLOR, PROVIDER_LABEL, settings, usageSince, type Member, type UsageRow } from "./api";
 
 type Period = "today" | "7" | "30" | "month";
 const PERIODS: [Period, string][] = [["today", "오늘"], ["7", "7일"], ["30", "30일"], ["month", "이번 달"]];
 const SERIES = ["gemini", "claude", "openai"] as const; // bottom → top in each bar
-const FEATURE_LABEL: Record<string, string> = { chat: "대화로 고치기", plan: "일정 처음 짜기", day: "하루 일정 짜기", geo: "위치 채우기", recs: "계절 추천", ticket: "항공권 읽기" };
 
 function since(p: Period) {
   return p === "today" ? kstStart("day") : p === "month" ? kstStart("month") : kstStart("day", Number(p) - 1);

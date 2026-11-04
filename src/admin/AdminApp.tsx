@@ -4,6 +4,7 @@ import { go } from "../components/ui";
 import { useApp } from "../lib/store";
 import { Filters } from "./Filters";
 import { Keys } from "./Keys";
+import { Logs } from "./Logs";
 import { Accounts } from "./Accounts";
 import { Members } from "./Members";
 import { Usage } from "./Usage";
@@ -12,7 +13,7 @@ import "./admin.css";
 type Nav = { id: string; label: string; icon: IconKey; children?: { id: string; label: string }[] };
 const NAV: Nav[] = [
   { id: "usage", label: "사용량", icon: "chart" },
-  { id: "members", label: "회원", icon: "users", children: [{ id: "members", label: "AI 사용 · 한도" }, { id: "accounts", label: "계정 관리" }] },
+  { id: "members", label: "회원", icon: "users", children: [{ id: "members", label: "AI 사용 · 한도" }, { id: "logs", label: "AI 사용 기록" }, { id: "accounts", label: "계정 관리" }] },
   { id: "keys", label: "AI 키 · 모델", icon: "key" },
   { id: "filters", label: "대화 필터", icon: "shield" },
 ];
@@ -64,6 +65,7 @@ export default function AdminApp({ sub, arg }: { sub?: string; arg?: string }) {
       <main className="adm-main">
         {page === "usage" && <Usage />}
         {page === "members" && <Members key={arg ?? ""} initial={arg} />}
+        {page === "logs" && <Logs key={arg ?? ""} initial={arg} />}
         {page === "accounts" && <Accounts key={arg ?? ""} initial={arg} />}
         {page === "keys" && <Keys />}
         {page === "filters" && <Filters />}
