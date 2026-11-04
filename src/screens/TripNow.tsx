@@ -113,7 +113,7 @@ export function TripNow({ id }: { id: string }) {
 
       <div className="askbar-wrap" style={{ zIndex: 750 }}>
         {s.user ? (
-          <AskBar id="now-ask" placeholder="말로 고치기 · 30분 늦어질 것 같아" onSend={ask} disabled={!!s.run} onHistory={(s.chats[id] ?? []).some((c) => c.role !== "note") ? () => setChat(true) : undefined} />
+          <AskBar id="now-ask" placeholder="말로 고치기 · 30분 늦어질 것 같아" onSend={ask} disabled={!!s.run} chat={{ open: chat, onToggle: () => setChat((v) => !v) }} />
         ) : (
           <div className="login-bar"><span>AI에게 말로 일정을 고치려면</span><KakaoButton small label="카카오로 로그인" /></div>
         )}

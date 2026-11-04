@@ -88,7 +88,8 @@ export async function runAi(tripId: string, mode: Mode): Promise<void> {
       messages,
       tools: TOOL_DEFS,
       run: makeExecutors({ draft, changes, onStage }),
-      maxTokens: bigJob ? 16000 : mode.kind === "chat" ? 1500 : 4000, // the server caps these too
+      // a ceiling only (you pay for what is written); a chat edit that rebuilds half a day needs a few thousand
+      maxTokens: bigJob ? 16000 : mode.kind === "chat" ? 6000 : 4000, // the server caps these too
       userText: mode.kind === "chat" ? mode.text : undefined,
       signal,
       onReply: (r) => { if (r.fallback && r.provider) fellBack = r.provider; },

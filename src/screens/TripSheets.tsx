@@ -94,7 +94,7 @@ export function ChatSheet({ trip, viewingDay, onClose }: { trip: Trip; viewingDa
         )}
       </div>
       <div style={{ padding: "10px 14px calc(14px + env(safe-area-inset-bottom))", borderTop: "1px solid var(--line)", background: "var(--surface)" }}>
-        <AskBar id="chat-ask" placeholder="예: 저녁을 1시간 당겨줘" onSend={send} disabled={!!s.run} />
+        <AskBar id="chat-ask" placeholder="예: 저녁을 1시간 당겨줘" onSend={send} disabled={!!s.run} chat={{ open: true, onToggle: onClose }} />
       </div>
     </Sheet>
   );

@@ -71,6 +71,8 @@ export interface AgentOpts {
   onReply?: (r: ServerReply) => void;
 }
 
+export const TOO_LONG = "바꿀 내용이 많아서 답이 중간에 끊겼어요. 하루씩, 또는 오전 · 오후로 나눠서 말해 주세요.";
+
 /** Calls the AI, runs the tools it asks for, and repeats until it answers in text. */
 export async function runAgent(o: AgentOpts): Promise<string> {
   const msgs: Msg[] = [...o.messages];
@@ -91,6 +93,8 @@ export async function runAgent(o: AgentOpts): Promise<string> {
     msgs.push({ role: "assistant", content: data.content });
     for (const b of data.content) if (b.type === "text" && b.text.trim()) texts.push(b.text.trim());
     const uses = data.content.filter((b): b is Extract<Block, { type: "tool_use" }> => b.type === "tool_use");
+    // cut off at the token ceiling: a half-written change cannot be applied, so say so instead of failing quietly
+    if (data.stop_reason === "max_tokens") { texts.push(TOO_LONG); break; }
     if (data.stop_reason !== "tool_use" || !uses.length) break;
     const results: Block[] = uses.map((u) => {
       const fn = o.run[u.name];

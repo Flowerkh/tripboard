@@ -5,7 +5,7 @@ import { SUPABASE_KEY, SUPABASE_URL } from "../lib/config";
 export type ProviderId = "claude" | "gemini" | "openai";
 export const FEATURES: [slot: string, label: string, hint: string][] = [
   ["plan", "일정 처음 짜기", "여행 전체를 한 번에 (최대 16,000토큰)"],
-  ["chat", "대화로 고치기", "\"점심 바꿔줘\" 같은 말 (최대 1,500토큰)"],
+  ["chat", "대화로 고치기", "\"점심 바꿔줘\" 같은 말 (최대 6,000토큰)"],
   ["geo", "위치 채우기", "지도 좌표 넣기"],
   ["recs", "계절 추천", "이 계절에 좋은 곳"],
   ["ticket", "항공권 사진 읽기", "e-티켓에서 비행 정보"],

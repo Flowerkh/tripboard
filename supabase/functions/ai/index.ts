@@ -31,7 +31,7 @@ const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { sta
 const FEATURES: Record<string, { slot: string; max: number }> = {
   plan: { slot: "plan", max: 16000 },
   day: { slot: "plan", max: 16000 },
-  chat: { slot: "chat", max: 1500 },
+  chat: { slot: "chat", max: 6000 },
   geo: { slot: "geo", max: 4000 },
   recs: { slot: "recs", max: 4000 },
   ticket: { slot: "ticket", max: 600 },

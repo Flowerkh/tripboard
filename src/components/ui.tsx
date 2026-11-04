@@ -41,8 +41,8 @@ export function Sheet({ onClose, label, tall, children }: { onClose: () => void;
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const SR: any = typeof window !== "undefined" ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition : null;
 
-/** onHistory: reopens the AI chat for this trip (shown once there is something to look back at). */
-export function AskBar({ placeholder, onSend, disabled, autoFocus, id, onHistory }: { placeholder: string; onSend: (text: string) => void; disabled?: boolean; autoFocus?: boolean; id: string; onHistory?: () => void }) {
+/** chat: the button that opens the trip's AI chat, and closes it again from inside the chat (a toggle). */
+export function AskBar({ placeholder, onSend, disabled, autoFocus, id, chat }: { placeholder: string; onSend: (text: string) => void; disabled?: boolean; autoFocus?: boolean; id: string; chat?: { open: boolean; onToggle: () => void } }) {
   const [v, setV] = useState("");
   const [listening, setListening] = useState(false);
   const rec = useRef<any>(null);
@@ -67,8 +67,8 @@ export function AskBar({ placeholder, onSend, disabled, autoFocus, id, onHistory
   };
   return (
     <form className="askbar" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-      {onHistory && (
-        <button type="button" className="icon-btn" aria-label="AI 대화 기록 보기" title="AI 대화 기록" onClick={onHistory}>
+      {chat && (
+        <button type="button" className={"icon-btn chat-toggle" + (chat.open ? " on" : "")} aria-pressed={chat.open} aria-label={chat.open ? "AI 대화 닫기" : "AI 대화 열기"} title={chat.open ? "AI 대화 닫기" : "AI 대화 · 이전 기록"} onClick={chat.onToggle}>
           <Icon name="chat" />
         </button>
       )}
