@@ -15,6 +15,12 @@
 .adm-links a { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 12px; color: #c9d3e6; text-decoration: none; font-weight: 600; }
 .adm-links a:hover { background: rgba(255, 255, 255, 0.06); }
 .adm-links a[aria-current="page"] { background: #2357d8; color: #fff; }
+.adm-group { display: flex; flex-direction: column; gap: 2px; }
+.adm-group-label { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; color: #c9d3e6; font-weight: 600; }
+.adm-group-label.on { color: #fff; }
+.adm-links a.sub { min-height: 40px; padding-left: 40px; font-weight: 500; position: relative; }
+.adm-links a.sub::before { content: ""; position: absolute; left: 20px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+.adm-links a.sub[aria-current="page"] { font-weight: 700; }
 .adm-me { margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 8px; font-size: 13px; color: #aab7cf; }
 .adm-me a { color: #c9d3e6; }
 .adm-main { flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px; }
@@ -22,6 +28,10 @@
   .adm-nav { max-width: none; flex-basis: 100%; padding: 14px 12px; gap: 10px; }
   .adm-links { flex-direction: row; flex-wrap: wrap; }
   .adm-links a { min-height: 40px; }
+  .adm-group { display: contents; }
+  .adm-group-label { display: none; }
+  .adm-links a.sub { padding-left: 12px; }
+  .adm-links a.sub::before { display: none; }
   .adm-me { display: none; }
   .adm-main { padding: 18px 14px; }
 }
@@ -131,3 +141,12 @@
 .btn.danger-solid { background: var(--bad); border-color: var(--bad); color: #fff; font-weight: 700; }
 .btn.danger-solid:disabled { opacity: 0.45; }
 .adm-split > aside { max-width: 440px; }
+
+/* link from one member page to the same member on the other */
+.adm-crosslink { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; font-size: 13px; font-weight: 600; color: var(--accent-text); text-decoration: none; }
+.adm-crosslink:hover { text-decoration: underline; }
+.adm-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.adm-stats span { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 12px; background: var(--sunk); min-width: 0; }
+.adm-stats small { font-size: 12px; color: var(--muted); }
+.adm-stats b { font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.adm-stats i { font-style: normal; font-size: 12px; font-weight: 500; color: var(--muted); }

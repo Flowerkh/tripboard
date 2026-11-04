@@ -4,21 +4,24 @@ import { go } from "../components/ui";
 import { useApp } from "../lib/store";
 import { Filters } from "./Filters";
 import { Keys } from "./Keys";
+import { Accounts } from "./Accounts";
 import { Members } from "./Members";
 import { Usage } from "./Usage";
 import "./admin.css";
 
-const NAV: [id: string, label: string, icon: IconKey][] = [
-  ["usage", "사용량", "chart"],
-  ["members", "회원", "users"],
-  ["keys", "AI 키 · 모델", "key"],
-  ["filters", "대화 필터", "shield"],
+type Nav = { id: string; label: string; icon: IconKey; children?: { id: string; label: string }[] };
+const NAV: Nav[] = [
+  { id: "usage", label: "사용량", icon: "chart" },
+  { id: "members", label: "회원", icon: "users", children: [{ id: "members", label: "AI 사용 · 한도" }, { id: "accounts", label: "계정 관리" }] },
+  { id: "keys", label: "AI 키 · 모델", icon: "key" },
+  { id: "filters", label: "대화 필터", icon: "shield" },
 ];
+const PAGES = NAV.flatMap((n) => (n.children ? n.children.map((c) => c.id) : [n.id]));
 
-/** #/admin/... — only admins get past the gate; the database refuses everyone else anyway. */
-export default function AdminApp({ sub }: { sub?: string }) {
+/** #/admin/<page>[/<member id>] — only admins get past the gate; the database refuses everyone else anyway. */
+export default function AdminApp({ sub, arg }: { sub?: string; arg?: string }) {
   const s = useApp();
-  const page = NAV.some(([id]) => id === sub) ? sub! : "usage";
+  const page = PAGES.includes(sub ?? "") ? sub! : "usage";
 
   if (s.user === undefined || (s.user && !s.ai)) return <div className="adm-gate"><p className="muted">관리자 정보를 확인하는 중…</p></div>;
   if (!s.user || !s.ai?.is_admin) {
@@ -42,8 +45,15 @@ export default function AdminApp({ sub }: { sub?: string }) {
           <span><b>트립보드</b><small>관리자</small></span>
         </div>
         <div className="adm-links">
-          {NAV.map(([id, label, icon]) => (
-            <a key={id} href={`#/admin/${id}`} aria-current={page === id ? "page" : undefined}><Icon name={icon} size={18} />{label}</a>
+          {NAV.map((n) => n.children ? (
+            <div key={n.id} className="adm-group" role="group" aria-labelledby={`nav-${n.id}`}>
+              <span id={`nav-${n.id}`} className={"adm-group-label" + (n.children.some((c) => c.id === page) ? " on" : "")}><Icon name={n.icon} size={18} />{n.label}</span>
+              {n.children.map((c) => (
+                <a key={c.id} className="sub" href={`#/admin/${c.id}`} aria-current={page === c.id ? "page" : undefined}><span className="sr">{n.label} · </span>{c.label}</a>
+              ))}
+            </div>
+          ) : (
+            <a key={n.id} href={`#/admin/${n.id}`} aria-current={page === n.id ? "page" : undefined}><Icon name={n.icon} size={18} />{n.label}</a>
           ))}
         </div>
         <div className="adm-me">
@@ -53,7 +63,8 @@ export default function AdminApp({ sub }: { sub?: string }) {
       </nav>
       <main className="adm-main">
         {page === "usage" && <Usage />}
-        {page === "members" && <Members />}
+        {page === "members" && <Members key={arg ?? ""} initial={arg} />}
+        {page === "accounts" && <Accounts key={arg ?? ""} initial={arg} />}
         {page === "keys" && <Keys />}
         {page === "filters" && <Filters />}
       </main>

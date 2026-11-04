@@ -37,7 +37,7 @@ export function App() {
   if (a === "admin") {
     return (
       <>
-        <Suspense fallback={<div className="adm-gate"><p className="muted">관리자 화면을 여는 중…</p></div>}><AdminApp sub={b} /></Suspense>
+        <Suspense fallback={<div className="adm-gate"><p className="muted">관리자 화면을 여는 중…</p></div>}><AdminApp sub={b} arg={c} /></Suspense>
         {s.toast && <div className="toast" role="status">{s.toast}</div>}
       </>
     );

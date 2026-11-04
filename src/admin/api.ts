@@ -45,7 +45,7 @@ export async function usageSince(since: Date): Promise<UsageRow[]> {
   return rows;
 }
 export const memberUsage = async (uid: string) =>
-  must(await supabase.from("ai_usage").select("at,feature,provider,model,input_tokens,output_tokens,cache_read,cost_usd,status,topic,snippet,first_round")
+  must(await supabase.from("ai_usage").select("at,feature,provider,model,input_tokens,output_tokens,cache_read,cache_write,cost_usd,status,topic,snippet,first_round")
     .eq("user_id", uid).order("at", { ascending: false }).limit(12)) as UsageRow[];
 export const blockedLog = async () =>
   must(await supabase.from("ai_usage").select("at,user_id,status,topic,snippet").in("status", ["blocked_app", "blocked_ai"]).order("at", { ascending: false }).limit(30)) as UsageRow[];
