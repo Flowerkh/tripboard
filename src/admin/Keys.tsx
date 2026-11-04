@@ -50,7 +50,10 @@ function ProviderCard({ p, onChange }: { p: Provider; onChange: () => void }) {
   const [busy, setBusy] = useState("");
   const [models, setModels] = useState<string[]>([]);
   const [slots, setSlots] = useState<Record<string, string>>(p.models ?? {});
-  const [prices, setPrices] = useState<Record<string, [number, number]>>(p.prices ?? {});
+  // prices are edited as text so "0." and "0.25" can be typed; they become numbers when saved
+  const [priceText, setPriceText] = useState<Record<string, [string, string]>>(() =>
+    Object.fromEntries(Object.entries(p.prices ?? {}).map(([k, v]) => [k, [String(v[0]), String(v[1])]])));
+  const prices = Object.fromEntries(Object.entries(priceText).map(([k, v]) => [k, [Number(v[0]) || 0, Number(v[1]) || 0]])) as Record<string, [number, number]>;
   const m = MARK[p.id];
   const dirty = JSON.stringify(slots) !== JSON.stringify(p.models ?? {}) || JSON.stringify(prices) !== JSON.stringify(p.prices ?? {});
 
@@ -110,8 +113,12 @@ function ProviderCard({ p, onChange }: { p: Provider; onChange: () => void }) {
         <span className="h">기능</span><span className="h">모델</span><span className="h p">입력 $/1M</span><span className="h p">출력 $/1M</span>
         {FEATURES.map(([slot, label, hint]) => {
           const model = slots[slot] ?? "";
-          const price = prices[model] ?? [0, 0];
-          const setPrice = (i: 0 | 1, v: string) => model && setPrices({ ...prices, [model]: (i === 0 ? [Number(v) || 0, price[1]] : [price[0], Number(v) || 0]) as [number, number] });
+          const price = priceText[model] ?? ["", ""];
+          const setPrice = (i: 0 | 1, raw: string) => {
+            const v = raw.replace(/,/g, ".").replace(/\s/g, "");
+            if (!model || !/^\d*\.?\d*$/.test(v)) return; // numbers only, one decimal point
+            setPriceText({ ...priceText, [model]: (i === 0 ? [v, price[1]] : [price[0], v]) as [string, string] });
+          };
           return (
             <div key={slot} style={{ display: "contents" }}>
               <span style={{ display: "flex", flexDirection: "column" }}><b>{label}</b><small className="adm-muted">{hint}</small></span>
@@ -119,8 +126,8 @@ function ProviderCard({ p, onChange }: { p: Provider; onChange: () => void }) {
                 <label className="sr" htmlFor={`${p.id}-${slot}`}>{label} 모델</label>
                 <input id={`${p.id}-${slot}`} className="input mono" list={`models-${p.id}`} placeholder={models.length ? "모델 고르기" : "모델 이름 (키 확인 후 목록)"} value={model} onChange={(e) => setSlots({ ...slots, [slot]: e.target.value.trim() })} />
               </span>
-              <input className="input mono" aria-label={`${label} 입력 가격`} inputMode="decimal" value={model ? String(price[0]) : ""} disabled={!model} onChange={(e) => setPrice(0, e.target.value)} />
-              <input className="input mono" aria-label={`${label} 출력 가격`} inputMode="decimal" value={model ? String(price[1]) : ""} disabled={!model} onChange={(e) => setPrice(1, e.target.value)} />
+              <input className="input mono" aria-label={`${label} 입력 가격`} inputMode="decimal" placeholder={model ? "0" : ""} value={model ? price[0] : ""} disabled={!model} onChange={(e) => setPrice(0, e.target.value)} />
+              <input className="input mono" aria-label={`${label} 출력 가격`} inputMode="decimal" placeholder={model ? "0" : ""} value={model ? price[1] : ""} disabled={!model} onChange={(e) => setPrice(1, e.target.value)} />
             </div>
           );
         })}
@@ -130,7 +137,7 @@ function ProviderCard({ p, onChange }: { p: Provider; onChange: () => void }) {
         <small className="adm-muted">모델을 비워 둔 기능은 이 AI로 처리하지 않고 기본 AI가 맡아요. 가격은 사용량 비용 계산에만 써요.</small>
         <button type="button" className="btn primary sm" disabled={!dirty} onClick={async () => {
           const clean = Object.fromEntries(Object.entries(slots).filter(([, v]) => v));
-          try { await saveProvider(p.id, { models: clean, prices }); toast(`${p.label} 모델을 저장했어요`); onChange(); } catch (e) { toast((e as Error).message); }
+          try { await saveProvider(p.id, { models: clean, prices }); toast(`${p.label} 모델 · 단가를 저장했어요`); onChange(); } catch (e) { toast((e as Error).message); }
         }}>모델 저장</button>
       </div>
     </section>
