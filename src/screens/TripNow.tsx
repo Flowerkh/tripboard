@@ -5,7 +5,7 @@ import { AskBar, go } from "../components/ui";
 import { KakaoButton } from "../components/Account";
 import { quickShift, runAi } from "../lib/ai/run";
 import { fromMin, toMin, untilLabel } from "../lib/dates";
-import { dirLink, providerFor, providerName } from "../lib/links";
+import { dirLink, linkProps, providerFor, providerName } from "../lib/links";
 import { toast, useApp } from "../lib/store";
 import { hasGeo, itemsOfDay, nowInfo, tripDays, walkMinutes } from "../lib/trip";
 import { ChatSheet } from "./TripSheets";
@@ -88,7 +88,7 @@ export function TripNow({ id }: { id: string }) {
                   <b style={{ fontSize: 17 }}><span className="mono">{next.start}</span> {next.title}</b>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 8 }}>
-                  <a className="btn primary" href={dirLink(provider, next, trip)} target="_blank" rel="noopener noreferrer"><Icon name="nav" size={17} stroke={2} />길찾기 · {providerName(provider)}</a>
+                  <a className="btn primary" href={dirLink(provider, next, trip)} {...linkProps(dirLink(provider, next, trip))}><Icon name="nav" size={17} stroke={2} />길찾기 · {providerName(provider)}</a>
                   <button type="button" className="btn" onClick={() => quickShift(id, n.day, next.start, 30)}>30분 미루기</button>
                 </div>
               </div>

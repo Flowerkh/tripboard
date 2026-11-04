@@ -6,7 +6,7 @@ import { AskBar, ConfirmButton, go, Sheet, TimeInput } from "../components/ui";
 import { applyPending, discardPending, runAi, stopAi } from "../lib/ai/run";
 import { KakaoButton } from "../components/Account";
 import { fmtDay, normTime, uid } from "../lib/dates";
-import { dirLink, mapLink, providerFor, providerName } from "../lib/links";
+import { dirLink, linkProps, mapLink, providerFor, providerName } from "../lib/links";
 import { deleteItem, deleteTrip, undoLast, upsertItem, useApp } from "../lib/store";
 import { hasGeo, itemsOfDay, phase, tripDays } from "../lib/trip";
 import type { Item, Status, Trip } from "../lib/types";
@@ -179,8 +179,8 @@ export function ItemSheet({ trip, itemId, preset, onClose, onAsk }: {
         </div>
         {orig && (orig.place || hasGeo(orig)) && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <a className="btn primary" href={dirLink(provider, orig, trip)} target="_blank" rel="noopener noreferrer"><Icon name="nav" size={16} stroke={2} />지금 위치에서</a>
-            {prev && (prev.place || hasGeo(prev)) ? <a className="btn" href={dirLink(provider, orig, trip, prev)} target="_blank" rel="noopener noreferrer">이전 일정에서 ↗</a> : <a className="btn" href={mapLink(provider, orig, trip)} target="_blank" rel="noopener noreferrer">{providerName(provider)} ↗</a>}
+            <a className="btn primary" href={dirLink(provider, orig, trip)} {...linkProps(dirLink(provider, orig, trip))}><Icon name="nav" size={16} stroke={2} />지금 위치에서</a>
+            {prev && (prev.place || hasGeo(prev)) ? <a className="btn" href={dirLink(provider, orig, trip, prev)} {...linkProps(dirLink(provider, orig, trip, prev))}>이전 일정에서 ↗</a> : <a className="btn" href={mapLink(provider, orig, trip)} target="_blank" rel="noopener noreferrer">{providerName(provider)} ↗</a>}
           </div>
         )}
         {orig && (

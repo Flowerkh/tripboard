@@ -2,7 +2,7 @@ import { Avatar, KakaoButton } from "../components/Account";
 import { Icon } from "../components/Icon";
 import { go } from "../components/ui";
 import { daysBetween, durLabel, fmtDay, today, untilLabel } from "../lib/dates";
-import { dirLink, providerFor } from "../lib/links";
+import { dirLink, linkProps, providerFor } from "../lib/links";
 import { loadSamples, useApp } from "../lib/store";
 import { nowInfo, phase, routeLabel, tripDays, tripEnd } from "../lib/trip";
 import type { Trip } from "../lib/types";
@@ -160,7 +160,7 @@ function LiveCard({ t }: { t: Trip }) {
             <span className="t">다음 · {untilLabel(Math.max(0, (Number(n.next.start.slice(0, 2)) * 60 + Number(n.next.start.slice(3))) - n.min))} 뒤</span>
             <span style={{ fontSize: 15, fontWeight: 700 }}><span className="mono">{n.next.start}</span> {n.next.title}</span>
           </div>
-          <a className="btn primary" href={dirLink(provider, n.next, t)} target="_blank" rel="noopener noreferrer" style={{ flex: "none" }}><Icon name="nav" size={16} stroke={2} />길찾기</a>
+          <a className="btn primary" href={dirLink(provider, n.next, t)} {...linkProps(dirLink(provider, n.next, t))} style={{ flex: "none" }}><Icon name="nav" size={16} stroke={2} />길찾기</a>
         </div>
       ) : <span className="t">오늘 남은 일정이 없어요.</span>}
     </div>

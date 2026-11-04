@@ -6,7 +6,7 @@ import { AskBar, go } from "../components/ui";
 import { canUseAi, LOGIN_FOR_AI, runAi } from "../lib/ai/run";
 import { KakaoButton } from "../components/Account";
 import { daysBetween, durLabel, fmtDay, nowMin, today, toMin } from "../lib/dates";
-import { dayRouteLinks, providerFor, providerName } from "../lib/links";
+import { dayRouteLinks, linkProps, providerFor, providerName, routeProvider, withRo } from "../lib/links";
 import { toast, useApp } from "../lib/store";
 import { hasGeo, itemsOfDay, legsOn, nowInfo, phase, tripDays, tripEnd } from "../lib/trip";
 import { Generating } from "./Generating";
@@ -52,7 +52,8 @@ export function TripView({ id }: { id: string }) {
   const unplaced = list.filter((it) => !hasGeo(it) && it.place.trim()).length;
   const num = new Map(geo.map((g, i) => [g.id, i + 1]));
   const provider = providerFor(trip, s.settings);
-  const routes = dayRouteLinks(provider, list, trip);
+  const routeVia = routeProvider(provider); // Naver on a computer → Kakao Map
+  const routes = dayRouteLinks(routeVia, list, trip);
   const isToday = day === t0 && ph === "during";
   const now = isToday ? nowInfo(trip, items) : null;
   const pins: Pin[] = geo.map((g) => ({ id: g.id, lat: g.lat, lng: g.lng, n: num.get(g.id)!, status: g.status, done: g.done, role: now?.cur?.id === g.id ? "now" : undefined }));
@@ -118,7 +119,7 @@ export function TripView({ id }: { id: string }) {
           </button>
         )}
         <button type="button" className="icon-btn flat map-over" style={{ top: 10, right: 10, width: 36, height: 36 }} aria-label={bigMap ? "지도 작게" : "지도 크게"} onClick={() => setBigMap(!bigMap)}><Icon name="expand" size={18} /></button>
-        {routes[0] && <a className="float-chip map-over" style={{ left: 10, bottom: 10 }} href={routes[0]} target="_blank" rel="noopener noreferrer">{providerName(provider)}으로 동선 보기 ↗</a>}
+        {routes[0] && <a className="float-chip map-over" style={{ left: 10, bottom: 10 }} href={routes[0]} {...linkProps(routes[0])}>{withRo(providerName(routeVia))} 동선 보기 ↗</a>}
       </section>
       <style>{bigMap ? ".map-card .map.big{height:420px}" : ""}</style>
 

@@ -1,4 +1,4 @@
-import { dirLink, mapLink, providerName, type Provider } from "../lib/links";
+import { dirLink, linkProps, mapLink, providerName, type Provider } from "../lib/links";
 import { hasGeo, type LegOnDay } from "../lib/trip";
 import type { Item, Trip } from "../lib/types";
 import { STATUS_LABEL } from "../lib/types";
@@ -61,7 +61,7 @@ export function ItemRow({ it, n, prev, trip, provider, selected, isNow, past, on
         <div className="item-acts">
           {canLink && (
             <>
-              <a className="link-chip" href={dirLink(provider, it, trip, fromPrev)} target="_blank" rel="noopener noreferrer">
+              <a className="link-chip" href={dirLink(provider, it, trip, fromPrev)} {...linkProps(dirLink(provider, it, trip, fromPrev))}>
                 {fromPrev ? "이전 장소에서 길찾기" : "길찾기"} ↗
               </a>
               <a className="link-chip" href={mapLink(provider, it, trip)} target="_blank" rel="noopener noreferrer">

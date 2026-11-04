@@ -4,7 +4,7 @@ import { fallbackView, MapView, type Pin } from "../components/MapView";
 import { ItemRow, LegRow } from "../components/Timeline";
 import { go } from "../components/ui";
 import { durLabel, fmtDay, today, toMin } from "../lib/dates";
-import { dayRouteLinks, providerFor, providerName } from "../lib/links";
+import { dayRouteLinks, linkProps, providerFor, providerName, routeProvider, withRo } from "../lib/links";
 import { fetchShared, ShareError, type Fetched } from "../lib/share";
 import { importTrip, toast, useApp } from "../lib/store";
 import { hasGeo, itemsOfDay, legsOn, nowInfo, phase, tripDays, tripEnd } from "../lib/trip";
@@ -89,7 +89,8 @@ export function SharedView({ id }: { id: string }) {
   const geo = list.filter(hasGeo);
   const num = new Map(geo.map((g, i) => [g.id, i + 1]));
   const provider = providerFor(trip, s.settings);
-  const routes = dayRouteLinks(provider, list, trip);
+  const routeVia = routeProvider(provider); // Naver on a computer → Kakao Map
+  const routes = dayRouteLinks(routeVia, list, trip);
   const isToday = day === t0 && ph === "during";
   const now = isToday ? nowInfo(trip, items) : null;
   const pins: Pin[] = geo.map((g) => ({ id: g.id, lat: g.lat, lng: g.lng, n: num.get(g.id)!, status: g.status, done: g.done, role: now?.cur?.id === g.id ? "now" : undefined }));
@@ -132,7 +133,7 @@ export function SharedView({ id }: { id: string }) {
 
       <section className="map-card" aria-label={`${dayIdx + 1}일차 지도`}>
         <MapView pins={pins} selectedId={sel} onPin={(pid) => { setSel(pid); document.getElementById(`it-${pid}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); }} fallback={fallbackView(trip.country)} label={`${dayIdx + 1}일차 동선 지도`} />
-        {routes[0] && <a className="float-chip map-over" style={{ left: 10, bottom: 10 }} href={routes[0]} target="_blank" rel="noopener noreferrer">{providerName(provider)}으로 동선 보기 ↗</a>}
+        {routes[0] && <a className="float-chip map-over" style={{ left: 10, bottom: 10 }} href={routes[0]} {...linkProps(routes[0])}>{withRo(providerName(routeVia))} 동선 보기 ↗</a>}
       </section>
 
       <section className="tl" aria-label={`${dayIdx + 1}일차 일정`}>

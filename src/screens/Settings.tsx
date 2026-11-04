@@ -85,6 +85,7 @@ export function Settings() {
             </div>
           </div>
         </div>
+        {settings.domesticMap === "naver" && <p className="muted" style={{ fontSize: 13 }}>네이버지도 동선 보기와 길찾기는 휴대폰의 네이버지도 앱에서 열려요. PC에서는 동선을 카카오맵으로, 장소는 네이버지도 웹으로 보여 줘요.</p>}
       </section>
 
       <section className="sec">
