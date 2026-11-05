@@ -4,6 +4,8 @@
 
 .adm-gate { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg); }
 .adm-gate .card { align-items: center; }
+/* the Kakao login and "back to app" buttons: same width and height */
+.adm-gate .card > .kakao-btn, .adm-gate .card > .btn { align-self: stretch; min-height: 48px; border-radius: 12px; font-size: 15px; }
 
 .adm { display: flex; flex-wrap: wrap; min-height: 100dvh; background: var(--bg); color: var(--ink); font-size: 14px; }
 .adm-nav { flex: 1 1 220px; max-width: 260px; box-sizing: border-box; background: #142037; color: #f4f7fd; padding: 24px 16px; display: flex; flex-direction: column; gap: 24px; }
