@@ -22,6 +22,9 @@ export interface Rec {
   area: string;
 }
 
+export type NightAway = "flight" | "move";
+export type NightKind = "stay" | NightAway;
+
 export interface Trip {
   id: string;
   title: string;
@@ -29,7 +32,10 @@ export interface Trip {
   country: string;
   city: string;
   start: string; // YYYY-MM-DD
+  /** calendar nights: the trip runs start … start + nights */
   nights: number;
+  /** Nights not spent at a hotel, by the date of that evening (a night flight, an overnight bus or train). Missing = 숙소. */
+  sleep?: Record<string, NightAway>;
   season: string;
   origin: string;
   transport: string;

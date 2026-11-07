@@ -3,11 +3,11 @@ import { Icon } from "../components/Icon";
 import { fallbackView, MapView, type Pin } from "../components/MapView";
 import { ItemRow, LegRow } from "../components/Timeline";
 import { go } from "../components/ui";
-import { durLabel, fmtDay, today, toMin } from "../lib/dates";
+import { fmtDay, today, toMin } from "../lib/dates";
 import { dayRouteLinks, linkProps, providerFor, providerName, routeProvider, withRo } from "../lib/links";
 import { fetchShared, ShareError, type Fetched } from "../lib/share";
 import { importTrip, toast, useApp } from "../lib/store";
-import { hasGeo, itemsOfDay, legsOn, nowInfo, phase, tripDays, tripEnd } from "../lib/trip";
+import { hasGeo, itemsOfDay, legsOn, nowInfo, phase, tripDays, tripEnd, tripLengthLabel } from "../lib/trip";
 import type { Item, Trip } from "../lib/types";
 import { ago } from "./ShareSheet";
 
@@ -113,7 +113,7 @@ export function SharedView({ id }: { id: string }) {
         <span className="ic"><Icon name={trip.kind === "domestic" ? "train" : "flight"} stroke={1.7} /></span>
         <span style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 15, fontWeight: 600 }}>{where.trim()}</span>
-          <span className="sub">{fmtDay(trip.start)} – {fmtDay(tripEnd(trip))} · {durLabel(trip.nights)}{trip.season ? ` · ${trip.season}` : ""}</span>
+          <span className="sub">{fmtDay(trip.start)} – {fmtDay(tripEnd(trip))} · {tripLengthLabel(trip)}{trip.season ? ` · ${trip.season}` : ""}</span>
         </span>
       </section>
 

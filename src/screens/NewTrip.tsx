@@ -1,11 +1,12 @@
-import { useMemo, useRef, useState } from "react";
-import { Icon } from "../components/Icon";
-import { go, Switch, TimeInput } from "../components/ui";
-import { addDays, durLabel, fmtDay, parseDay, pad, seasonOf, today } from "../lib/dates";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Icon, type IconKey } from "../components/Icon";
+import { go, Sheet, Switch, TimeInput } from "../components/ui";
+import { addDays, daysBetween, fmtDay, parseDay, pad, seasonOf, today } from "../lib/dates";
+import { cleanSleep, NIGHT_LABEL, nightOf, sleepCounts, sleepNote, tripDurLabel, tripNights } from "../lib/trip";
 import { canUseAi, LOGIN_FOR_AI, readFlights, runAi } from "../lib/ai/run";
 import { loginWithKakao, planAfterLogin } from "../lib/cloud";
 import { createTrip, toast, updateTrip, useApp } from "../lib/store";
-import type { Kind, Leg, Trip } from "../lib/types";
+import type { Kind, Leg, NightAway, NightKind, Trip } from "../lib/types";
 
 const COUNTRIES = ["일본", "대만", "베트남", "태국", "필리핀", "싱가포르", "홍콩", "미국", "프랑스"];
 const CITIES = ["부산", "제주", "강릉", "경주", "여수", "전주", "속초", "통영"];
@@ -16,7 +17,7 @@ const PACES: [string, string][] = [["여유롭게", "하루 4~5곳"], ["보통",
 
 interface Flight { from: string; to: string; dep: string; arr: string; no: string }
 interface W {
-  step: number; kind: Kind | ""; start: string; nights: number; country: string; city: string;
+  step: number; kind: Kind | ""; start: string; nights: number; sleep: Record<string, NightAway>; country: string; city: string;
   out: Flight; back: Flight; noFlight: boolean; origin: string; transport: string; arrTime: string; depTime: string;
   who: string; likes: string[]; pace: string; memo: string; title: string;
 }
@@ -24,7 +25,7 @@ interface W {
 function fromTrip(t: Trip): W {
   const f = (l?: Leg): Flight => ({ from: l?.from ?? "", to: l?.to ?? "", dep: l?.dep ?? "", arr: l?.arr ?? "", no: l?.no ?? "" });
   return {
-    step: 2, kind: t.kind, start: t.start, nights: t.nights, country: t.country, city: t.city,
+    step: 2, kind: t.kind, start: t.start, nights: t.nights, sleep: { ...(t.sleep ?? {}) }, country: t.country, city: t.city,
     out: f(t.legs.out), back: f(t.legs.back), noFlight: t.kind === "overseas" && !t.legs.out && !t.legs.back,
     origin: t.origin, transport: t.transport, arrTime: (t.legs.out?.arr ?? "").slice(11, 16), depTime: (t.legs.back?.dep ?? "").slice(11, 16),
     who: t.companions, likes: [...t.styles], pace: t.pace || "보통", memo: t.memo, title: t.title,
@@ -37,13 +38,13 @@ export function NewTrip({ kind, editId }: { kind?: string; editId?: string }) {
   const [w, setW] = useState<W>(() =>
     editing ? fromTrip(editing) : {
       step: kind === "overseas" || kind === "domestic" ? 2 : 1, kind: kind === "overseas" || kind === "domestic" ? kind : "",
-      start: addDays(today(), 14), nights: 2, country: "", city: "",
+      start: addDays(today(), 14), nights: 2, sleep: {}, country: "", city: "",
       out: { from: "ICN", to: "", dep: "", arr: "", no: "" }, back: { from: "", to: "ICN", dep: "", arr: "", no: "" }, noFlight: false,
       origin: "", transport: "", arrTime: "", depTime: "", who: "", likes: [], pace: "보통", memo: "", title: "",
     });
   const set = (p: Partial<W>) => setW((x) => ({ ...x, ...p }));
   const minStep = editing ? 2 : 1;
-  const autoTitle = `${(w.kind === "overseas" ? w.city || w.country : w.city) || "새 여행"} ${durLabel(w.nights)}`;
+  const autoTitle = `${(w.kind === "overseas" ? w.city || w.country : w.city) || "새 여행"} ${tripDurLabel(w)}`;
 
   const next = () => {
     if (w.step === 1 && !w.kind) return toast("해외인지 국내인지 골라 주세요");
@@ -67,7 +68,7 @@ export function NewTrip({ kind, editId }: { kind?: string; editId?: string }) {
     }
     return {
       title: (w.title || autoTitle).trim().slice(0, 60), kind: w.kind as Kind, country: w.kind === "overseas" ? w.country.trim() : "대한민국", city: w.city.trim(),
-      start: w.start, nights: w.nights, season: editing?.season ?? "", origin: w.origin.trim(), transport: w.transport, companions: w.who, styles: w.likes, pace: w.pace,
+      start: w.start, nights: w.nights, sleep: cleanSleep(w.sleep, w.start, w.nights), season: editing?.season ?? "", origin: w.origin.trim(), transport: w.transport, companions: w.who, styles: w.likes, pace: w.pace,
       memo: w.memo.trim(), legs, dayLabels: editing?.dayLabels ?? {}, notice: editing?.notice ?? "", recs: editing?.recs ?? [],
     };
   };
@@ -150,59 +151,201 @@ function StepKind({ w, set }: StepProps) {
   );
 }
 
+const MAX_NIGHTS = 30;
+const NIGHT_ICON: Record<NightKind, IconKey> = { stay: "stay", flight: "flight", move: "train" };
+const NIGHT_SHORT: Record<NightKind, string> = { stay: "숙소", flight: "기내", move: "이동" };
+const md = (d: string) => `${Number(d.slice(5, 7))}.${Number(d.slice(8))}`;
+
 function StepDates({ w, set }: StepProps) {
-  const [month, setMonth] = useState(() => { const d = parseDay(w.start); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const [sheet, setSheet] = useState<"both" | "end" | null>(null);
+  const [pick, setPick] = useState<{ day: string; left: number; top: number } | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
   const end = addDays(w.start, w.nights);
-  const t0 = today();
-  const cells = useMemo(() => {
-    const first = month.getDay();
-    const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-    const out: (string | null)[] = Array(first).fill(null);
-    for (let d = 1; d <= days; d++) out.push(`${month.getFullYear()}-${pad(month.getMonth() + 1)}-${pad(d)}`);
-    while (out.length % 7) out.push(null);
-    return out;
-  }, [month]);
-  const shift = (n: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1));
+  const nights = tripNights(w);
+  const kindOf = (d: string) => nightOf(w, d);
+  const setKind = (d: string, k: NightKind) => {
+    const s = { ...w.sleep };
+    if (k === "stay") delete s[d]; else s[d] = k;
+    set({ sleep: s });
+  };
+  // close the picker when tapping anywhere else
+  useEffect(() => {
+    if (!pick) return;
+    const off = (e: PointerEvent) => {
+      const el = e.target as HTMLElement;
+      if (!popRef.current?.contains(el) && !el.closest(".night-cell")) setPick(null);
+    };
+    document.addEventListener("pointerdown", off);
+    return () => document.removeEventListener("pointerdown", off);
+  }, [pick]);
+  const openPick = (d: string, el: HTMLElement) => {
+    if (pick?.day === d) return setPick(null);
+    const box = gridRef.current!;
+    const left = Math.max(0, Math.min(el.offsetLeft + el.offsetWidth / 2 - 120, box.clientWidth - 240));
+    setPick({ day: d, left, top: el.offsetTop + el.offsetHeight + 6 });
+  };
+  const first = nights[0];
+  const last = nights[nights.length - 1];
+  const presets: [string, string][] = nights.length > 1 ? [["가는 비행기에서 1박", first], ["오는 비행기에서 1박", last]] : nights.length ? [["밤 비행기에서 1박", first]] : [];
+  const lead = parseDay(w.start).getDay();
+  const cells: ({ d: string; home: boolean } | null)[] = [...Array<null>(lead).fill(null), ...nights.map((d) => ({ d, home: false })), { d: end, home: true }];
+  while (cells.length % 7) cells.push(null);
+  const note = sleepNote(w);
+
   return (
     <>
       <h1 style={{ fontSize: 26, letterSpacing: "-0.02em" }}>언제, 며칠 가요?</h1>
-      <section className="card cal" aria-label="출발일 고르기">
-        <div className="sec-row">
-          <button type="button" className="icon-btn" style={{ border: 0, background: "transparent" }} aria-label="이전 달" onClick={() => shift(-1)}><Icon name="back" size={18} stroke={2} /></button>
-          <b>{month.getFullYear()}년 {month.getMonth() + 1}월</b>
-          <button type="button" className="icon-btn" style={{ border: 0, background: "transparent" }} aria-label="다음 달" onClick={() => shift(1)}><Icon name="right" size={18} stroke={2} /></button>
+      <section className="sec" aria-label="날짜" style={{ gap: 8 }}>
+        <div className="date-fields">
+          <button type="button" className="date-field" aria-label={`가는 날 바꾸기, 지금 ${fmtDay(w.start)}`} onClick={() => setSheet("both")}>
+            <span className="k">가는 날</span><b>{fmtDay(w.start)}</b>
+          </button>
+          <span className="days-pill">{w.nights ? `${w.nights + 1}일` : "당일"}</span>
+          <button type="button" className="date-field" aria-label={`오는 날 바꾸기, 지금 ${fmtDay(end)}`} onClick={() => setSheet("end")}>
+            <span className="k">오는 날</span><b>{fmtDay(end)}</b>
+          </button>
         </div>
-        <div className="cal-grid">
-          {"일월화수목금토".split("").map((d, i) => <span key={d} className="wd" style={{ color: i === 0 ? "var(--bad)" : i === 6 ? "var(--accent-text)" : undefined }}>{d}</span>)}
-          {cells.map((c, i) => {
-            if (!c) return <span key={i} />;
-            const dow = i % 7;
-            const edge = c === w.start || c === end;
-            const inRange = c > w.start && c < end;
-            const past = c < t0;
-            const cls = ["cal-day", dow === 0 ? "sun" : dow === 6 ? "sat" : "", edge ? "edge" : inRange ? "in" : "", past ? "past" : ""].join(" ");
-            return <button key={c} type="button" className={cls} disabled={past} aria-pressed={edge} aria-label={`${Number(c.slice(5, 7))}월 ${Number(c.slice(8))}일${c === w.start ? ", 출발일" : c === end ? ", 돌아오는 날" : ""}`} onClick={() => set({ start: c })}>{Number(c.slice(8))}</button>;
-          })}
-        </div>
+        <span className="muted" style={{ fontSize: 12 }}>누르면 달력이 열려요. 두 달에 걸친 여행도 위아래로 넘기며 한 번에 골라요.</span>
       </section>
-      <section className="sec">
-        <span className="label">기간</span>
-        <div className="chips">
-          {[0, 1, 2, 3, 4].map((n) => <button key={n} type="button" className={"chip" + (w.nights === n ? " on" : "")} aria-pressed={w.nights === n} onClick={() => set({ nights: n })}>{durLabel(n)}</button>)}
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <button type="button" className="icon-btn" style={{ width: 38, height: 38 }} aria-label="하루 줄이기" onClick={() => set({ nights: Math.max(0, w.nights - 1) })}>−</button>
-            <button type="button" className="icon-btn" style={{ width: 38, height: 38 }} aria-label="하루 늘리기" onClick={() => set({ nights: Math.min(20, w.nights + 1) })}>+</button>
-          </span>
-        </div>
-      </section>
+
+      {nights.length > 0 && (
+        <section className="card" aria-labelledby="night-title" style={{ padding: "16px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <h2 id="night-title" style={{ fontSize: 17 }}>밤마다 어디서 자요?</h2>
+            <span className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>기본은 모두 숙소예요. 밤 비행기나 야간 버스 · 기차를 타는 밤은 칸을 눌러 바꿔 주세요.</span>
+          </div>
+          <div className="chips">
+            {presets.map(([label, d]) => {
+              const on = kindOf(d) === "flight";
+              return <button key={label} type="button" className={"chip sm" + (on ? " on" : "")} aria-pressed={on} onClick={() => setKind(d, on ? "stay" : "flight")}><Icon name="flight" size={15} />{label}</button>;
+            })}
+          </div>
+          <div className="wd-row" aria-hidden="true">{"일월화수목금토".split("").map((x, i) => <span key={x} className={i === 0 ? "sun" : i === 6 ? "sat" : ""}>{x}</span>)}</div>
+          <div className="night-grid" ref={gridRef}>
+            {cells.map((c, i) => {
+              if (!c) return <span key={i} />;
+              const firstOfMonth = c.d === w.start || c.d.endsWith("-01");
+              const label = firstOfMonth ? md(c.d) : String(Number(c.d.slice(8)));
+              if (c.home) return <span key={c.d} className="night-cell home"><span className="d">{label}</span><span className="k muted">도착</span></span>;
+              const k = kindOf(c.d);
+              return (
+                <button key={c.d} type="button" className={`night-cell ${k}` + (pick?.day === c.d ? " picked" : "")} aria-haspopup="dialog" aria-expanded={pick?.day === c.d}
+                  aria-label={`${fmtDay(c.d)} 밤, ${NIGHT_LABEL[k]}. 눌러서 바꾸기`} onClick={(e) => openPick(c.d, e.currentTarget)}>
+                  <span className="d">{label}</span><Icon name={NIGHT_ICON[k]} size={18} /><span className="k">{NIGHT_SHORT[k]}</span>
+                </button>
+              );
+            })}
+            {pick && (
+              <div ref={popRef} className="night-pop" role="dialog" aria-label={`${fmtDay(pick.day)} 밤 어디서 자요?`} style={{ left: pick.left, top: pick.top }}
+                onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setPick(null); } }}>
+                <b>{fmtDay(pick.day)} 밤 어디서 자요?</b>
+                <div className="opts">
+                  {(["stay", "flight", "move"] as NightKind[]).map((k) => (
+                    <button key={k} type="button" aria-pressed={kindOf(pick.day) === k} autoFocus={kindOf(pick.day) === k} onClick={() => { setKind(pick.day, k); setPick(null); }}>
+                      <Icon name={NIGHT_ICON[k]} size={18} />{NIGHT_SHORT[k]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       <section style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--sunk)", borderRadius: 16, padding: "12px 14px" }}>
-        <span style={{ width: 40, height: 40, borderRadius: 12, background: "var(--surface)", color: "var(--accent-text)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><Icon name="leaf" /></span>
+        <span style={{ width: 40, height: 40, borderRadius: 12, background: "var(--surface)", color: "var(--accent-text)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><Icon name={note ? "moon" : "leaf"} /></span>
         <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <b style={{ fontSize: 15 }}><span className="mono">{fmtDay(w.start)} – {fmtDay(end)}</span> · {durLabel(w.nights)}</b>
-          <span className="muted" style={{ fontSize: 13 }}>{seasonOf(w.start)}이에요. 이 계절에 좋은 곳을 함께 추천해요.</span>
+          <b style={{ fontSize: 15 }}><span className="mono">{fmtDay(w.start)} – {fmtDay(end)}</span> · {tripDurLabel(w)}</b>
+          <span className="muted" style={{ fontSize: 13 }}>{note ? `숙소 ${sleepCounts(w).stay}박 · ${note} · ` : ""}{seasonOf(w.start)}이에요. 이 계절에 좋은 곳을 함께 추천해요.</span>
         </span>
       </section>
+
+      {sheet && (
+        <DateSheet start={w.start} end={end} mode={sheet} onClose={() => setSheet(null)}
+          onDone={(s, e) => { const n = daysBetween(s, e); set({ start: s, nights: n, sleep: cleanSleep(w.sleep, s, n) }); setSheet(null); }} />
+      )}
     </>
+  );
+}
+
+/** Bottom sheet calendar: months run on below each other, so a trip across two months is picked in one go. */
+function DateSheet({ start, end, mode, onClose, onDone }: { start: string; end: string; mode: "both" | "end"; onClose: () => void; onDone: (s: string, e: string) => void }) {
+  const t0 = today();
+  const [s, setS] = useState(start);
+  const [e, setE] = useState<string | null>(end);
+  // which tap comes next: "both" starts over from the departure day, "end" only moves the return day
+  const [stage, setStage] = useState<"start" | "end">(mode === "end" ? "end" : "start");
+  const monthsRef = useRef<HTMLDivElement>(null);
+  const months = useMemo(() => {
+    const first = parseDay(start < t0 ? start : t0);
+    return Array.from({ length: 15 }, (_, i) => new Date(first.getFullYear(), first.getMonth() + i, 1));
+  }, []);
+  useEffect(() => {
+    monthsRef.current?.querySelector<HTMLElement>(`[data-month="${(mode === "end" ? end : start).slice(0, 7)}"]`)?.scrollIntoView({ block: "start" });
+  }, []);
+  const tap = (d: string) => {
+    if (stage === "start") { setS(d); setE(null); setStage("end"); return; }
+    if (d < s) { setS(d); setE(null); return; }
+    if (daysBetween(s, d) > MAX_NIGHTS) return toast(`여행은 최대 ${MAX_NIGHTS + 1}일까지 고를 수 있어요`);
+    setE(d);
+    setStage("start");
+  };
+  const n = e ? daysBetween(s, e) : 0;
+  const hint = !e ? "돌아오는 날을 누르세요. 출발일보다 앞을 누르면 거기서부터 다시 골라요."
+    : mode === "end" && stage === "end" ? "돌아오는 날을 누르세요. 가는 날은 그대로예요."
+    : "다시 누르면 출발일부터 새로 골라요. 같은 날을 두 번 누르면 당일치기예요.";
+  return (
+    <Sheet onClose={onClose} label="날짜 고르기" tall>
+      <div className="date-sheet" style={{ display: "contents" }}>
+        <div className="sheet-head">
+          <b style={{ flex: 1, fontSize: 18 }}>날짜 고르기</b>
+          <button type="button" className="icon-btn" aria-label="닫기" onClick={onClose}><Icon name="close" size={18} /></button>
+        </div>
+        <div className="date-sum" role="status">
+          <span><span className="k">가는 날</span><b>{fmtDay(s)}</b></span>
+          <span className="days-pill">{e ? (n ? `${n + 1}일` : "당일") : "…"}</span>
+          <span style={{ textAlign: "right" }}><span className="k">오는 날</span><b>{e ? fmtDay(e) : "고르는 중"}</b></span>
+        </div>
+        <p className="date-hint">{hint}</p>
+        <div className="wd-row" aria-hidden="true">{"일월화수목금토".split("").map((x, i) => <span key={x} className={i === 0 ? "sun" : i === 6 ? "sat" : ""}>{x}</span>)}</div>
+        <div className="sheet-body date-months" ref={monthsRef}>
+          {months.map((m) => {
+            const key = `${m.getFullYear()}-${pad(m.getMonth() + 1)}`;
+            const days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+            const cells: (string | null)[] = [...Array<null>(m.getDay()).fill(null)];
+            for (let d = 1; d <= days; d++) cells.push(`${key}-${pad(d)}`);
+            return (
+              <section key={key} data-month={key} aria-label={`${m.getFullYear()}년 ${m.getMonth() + 1}월`}>
+                <div className="m-title">{m.getFullYear()}년 {m.getMonth() + 1}월</div>
+                <div className="cal-grid">
+                  {cells.map((c, i) => {
+                    if (!c) return <span key={i} />;
+                    const dow = i % 7;
+                    const edge = c === s || c === e;
+                    const inRange = !!e && c > s && c < e;
+                    const past = c < t0;
+                    const tag = c === s ? "가는 날" : c === e ? "오는 날" : "";
+                    return (
+                      <button key={c} type="button" disabled={past} aria-pressed={edge}
+                        className={["cal-day", dow === 0 ? "sun" : dow === 6 ? "sat" : "", edge ? "edge" : inRange ? "in" : "", past ? "past" : ""].join(" ")}
+                        aria-label={`${m.getMonth() + 1}월 ${Number(c.slice(8))}일 ${"일월화수목금토"[dow]}요일${tag ? `, ${tag}` : ""}`} onClick={() => tap(c)}>
+                        {Number(c.slice(8))}{tag && <span className="tag">{tag}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+        <div className="sheet-foot">
+          <button type="button" className="btn primary big" style={{ width: "100%" }} disabled={!e} onClick={() => e && onDone(s, e)}>
+            {e ? `${md(s)} – ${md(e)} · ${n ? `${n + 1}일` : "당일치기"}로 정하기` : "돌아오는 날을 골라 주세요"}
+          </button>
+        </div>
+      </div>
+    </Sheet>
   );
 }
 
@@ -252,16 +395,59 @@ function DateTime24({ id, label, value, fallbackDate, onChange }: { id: string; 
   );
 }
 
+type Span = Pick<W, "start" | "nights" | "sleep">;
+/**
+ * A flight that lands the next day means that night is spent on the plane: mark it 기내, and stretch the
+ * trip to the landing day if needed. Only for a one- or two-day jump, so a half-typed date can't stretch it.
+ */
+function fitFlights(w: W, out: Flight, back: Flight): { patch: Span; title: string; body: string } | null {
+  const day = (v: string) => v.slice(0, 10);
+  const overnight = (f: Flight) => f.dep && f.arr && day(f.arr) > day(f.dep) && daysBetween(day(f.dep), day(f.arr)) <= 2;
+  let { start, nights } = w;
+  const sleep = { ...w.sleep };
+  const lines: string[] = [];
+  if (overnight(out)) {
+    const d = day(out.dep);
+    let moved = false;
+    if (d < start && daysBetween(d, start) <= 2) { nights += daysBetween(d, start); start = d; moved = true; }
+    const moveText = moved ? `출발이 ${fmtDay(d)}이라 여행을 그날부터로 맞추고, ` : "";
+    if (d >= start && sleep[d] !== "flight") { sleep[d] = "flight"; lines.push(`${moveText}${fmtDay(d)} 밤은 가는 비행기에서 자는 것으로 했어요.`); }
+    else if (moved) lines.push(`출발이 ${fmtDay(d)}이라 여행을 그날부터로 맞췄어요.`);
+  }
+  if (overnight(back)) {
+    const d = day(back.dep), a = day(back.arr);
+    const endNow = addDays(start, nights);
+    let moved = false;
+    if (a > endNow && daysBetween(endNow, a) <= 2) { nights = daysBetween(start, a); moved = true; }
+    const moveText = moved ? `도착이 ${fmtDay(a)}이라 여행을 ${fmtDay(a)}까지로 맞추고, ` : "";
+    if (d >= start && d < addDays(start, nights) && sleep[d] !== "flight") { sleep[d] = "flight"; lines.push(`${moveText}${fmtDay(d)} 밤은 기내박으로 했어요.`); }
+    else if (moved) lines.push(`도착이 ${fmtDay(a)}이라 여행을 ${fmtDay(a)}까지로 맞췄어요.`);
+  }
+  if (!lines.length) return null;
+  return {
+    patch: { start, nights, sleep: cleanSleep(sleep, start, nights) },
+    title: overnight(out) && overnight(back) ? "가는 · 오는 비행기에서 자요" : overnight(back) ? "오는 비행기에서 하룻밤 자요" : "가는 비행기에서 하룻밤 자요",
+    body: lines.join(" "),
+  };
+}
+
 function StepOverseas({ w, set }: StepProps) {
   const file = useRef<HTMLInputElement>(null);
   const [reading, setReading] = useState(false);
+  const [fit, setFit] = useState<{ undo: Span; title: string; body: string } | null>(null);
+  /** Sets the flights and, when one lands the next day, the night on the plane (with a way back). */
+  const setFlights = (out: Flight, back: Flight, extra: Partial<W> = {}) => {
+    const r = fitFlights(w, out, back);
+    if (r) setFit({ undo: { start: w.start, nights: w.nights, sleep: w.sleep }, title: r.title, body: r.body });
+    set({ out, back, ...extra, ...(r?.patch ?? {}) });
+  };
   const onFile = async (f?: File) => {
     if (!f) return;
     setReading(true);
     try {
       const r = await readFlights(f);
       const pick = (src: Record<string, string> | undefined, cur: Flight): Flight => ({ from: src?.from || cur.from, to: src?.to || cur.to, dep: src?.dep || cur.dep, arr: src?.arr || cur.arr, no: src?.no || cur.no });
-      set({ out: pick(r.out, w.out), back: pick(r.back, w.back), noFlight: false });
+      setFlights(pick(r.out, w.out), pick(r.back, w.back), { noFlight: false });
       toast("항공편을 채웠어요. 맞는지 확인해 주세요");
     } catch (e) {
       toast((e as Error).message);
@@ -293,9 +479,25 @@ function StepOverseas({ w, set }: StepProps) {
         </div>
         {!w.noFlight && (
           <>
-            <FlightCard label="가는 편" f={w.out} date={w.start} onChange={(out) => set({ out })} />
-            <FlightCard label="오는 편" f={w.back} date={addDays(w.start, w.nights)} onChange={(back) => set({ back })} />
+            <FlightCard label="가는 편" f={w.out} date={w.start} onChange={(out) => setFlights(out, w.back)} />
+            <FlightCard label="오는 편" f={w.back} date={addDays(w.start, w.nights)} onChange={(back) => setFlights(w.out, back)} />
           </>
+        )}
+        {fit && !w.noFlight && (
+          <section className="fit-note" role="status" aria-labelledby="fit-title">
+            <span style={{ width: 40, height: 40, borderRadius: 12, background: "var(--surface)", color: "var(--accent-text)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><Icon name="moon" /></span>
+            <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+              <b id="fit-title" style={{ fontSize: 15 }}>{fit.title}</b>
+              <span style={{ fontSize: 13, lineHeight: 1.5 }}>{fit.body}</span>
+              <span className="chips-row">
+                <span>숙소 {sleepCounts(w).stay}박</span>
+                {sleepNote(w) && <span style={{ color: "var(--accent-text)" }}>{sleepNote(w)}</span>}
+                <span>{tripDurLabel(w)}</span>
+                <button type="button" className="link-btn" style={{ marginLeft: "auto", minHeight: 36, textDecoration: "underline", textUnderlineOffset: 3 }}
+                  onClick={() => { set(fit.undo); setFit(null); }}>되돌리기</button>
+              </span>
+            </span>
+          </section>
         )}
         <label className="toggle" htmlFor="ov-noflight">
           <span>항공편은 아직 안 정했어요</span>

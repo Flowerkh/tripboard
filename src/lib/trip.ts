@@ -1,5 +1,5 @@
 import { addDays, nowMin, toMin, today } from "./dates";
-import type { Item, Leg, Trip } from "./types";
+import type { Item, Leg, NightAway, NightKind, Trip } from "./types";
 
 export function tripDays(t: Trip): string[] {
   const out: string[] = [];
@@ -9,6 +9,39 @@ export function tripDays(t: Trip): string[] {
 export function tripEnd(t: Trip): string {
   return addDays(t.start, t.nights || 0);
 }
+// ---------- nights: 숙소 / 기내 / 야간 이동 ----------
+type Span = Pick<Trip, "start" | "nights" | "sleep">;
+export const NIGHT_LABEL: Record<NightKind, string> = { stay: "숙소", flight: "기내", move: "야간 이동" };
+/** The evenings of the trip (the last day has none: you are home). */
+export function tripNights(t: Span): string[] {
+  return Array.from({ length: Math.max(0, t.nights || 0) }, (_, i) => addDays(t.start, i));
+}
+export const nightOf = (t: Pick<Trip, "sleep">, day: string): NightKind => t.sleep?.[day] ?? "stay";
+/** Keeps only the nights that fall inside the trip. */
+export function cleanSleep(sleep: Record<string, NightAway> | undefined, start: string, nights: number): Record<string, NightAway> {
+  const keep = new Set(tripNights({ start, nights }));
+  return Object.fromEntries(Object.entries(sleep ?? {}).filter(([d, k]) => keep.has(d) && (k === "flight" || k === "move")));
+}
+export function sleepCounts(t: Span): Record<NightKind, number> {
+  const c: Record<NightKind, number> = { stay: 0, flight: 0, move: 0 };
+  for (const d of tripNights(t)) c[nightOf(t, d)]++;
+  return c;
+}
+/** "2박 3일", "5박 7일" (a night on a plane is not a 박), "무박 2일", "당일치기" */
+export function tripDurLabel(t: Span): string {
+  const n = t.nights || 0;
+  if (!n) return "당일치기";
+  const stay = sleepCounts(t).stay;
+  return `${stay ? `${stay}박` : "무박"} ${n + 1}일`;
+}
+/** "기내 1박 · 야간 이동 1박", or "" when every night is at a hotel */
+export function sleepNote(t: Span): string {
+  const c = sleepCounts(t);
+  return [c.flight ? `기내 ${c.flight}박` : "", c.move ? `야간 이동 ${c.move}박` : ""].filter(Boolean).join(" · ");
+}
+/** "5박 7일 · 기내 1박" */
+export const tripLengthLabel = (t: Span) => [tripDurLabel(t), sleepNote(t)].filter(Boolean).join(" · ");
+
 export function byTime(a: Item, b: Item): number {
   return (toMin(a.start) ?? 9999) - (toMin(b.start) ?? 9999) || a.order - b.order;
 }

@@ -1,10 +1,10 @@
 import { Avatar, KakaoButton } from "../components/Account";
 import { Icon } from "../components/Icon";
 import { go } from "../components/ui";
-import { daysBetween, durLabel, fmtDay, today, untilLabel } from "../lib/dates";
+import { daysBetween, fmtDay, today, untilLabel } from "../lib/dates";
 import { dirLink, linkProps, providerFor } from "../lib/links";
 import { loadSamples, useApp } from "../lib/store";
-import { nowInfo, phase, routeLabel, tripDays, tripEnd } from "../lib/trip";
+import { nowInfo, phase, routeLabel, tripDays, tripEnd, tripLengthLabel } from "../lib/trip";
 import type { Trip } from "../lib/types";
 
 function TripCard({ t, right, past }: { t: Trip; right: string; past?: boolean }) {
@@ -17,7 +17,7 @@ function TripCard({ t, right, past }: { t: Trip; right: string; past?: boolean }
           <span className="title">{t.title}</span>
           <span className={"tag" + (dom ? " dom" : "")}>{dom ? "국내" : "해외"}</span>
         </span>
-        <span className="sub">{fmtDay(t.start)} – {fmtDay(tripEnd(t))} · {durLabel(t.nights)}</span>
+        <span className="sub">{fmtDay(t.start)} – {fmtDay(tripEnd(t))} · {tripLengthLabel(t)}</span>
         {routeLabel(t) && <span className="sub mono">{routeLabel(t)}</span>}
       </span>
       {right && <span className="dday">{right}</span>}

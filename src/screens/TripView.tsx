@@ -5,10 +5,10 @@ import { ItemRow, LegRow } from "../components/Timeline";
 import { AskBar, go } from "../components/ui";
 import { canUseAi, LOGIN_FOR_AI, runAi } from "../lib/ai/run";
 import { KakaoButton } from "../components/Account";
-import { daysBetween, durLabel, fmtDay, nowMin, today, toMin } from "../lib/dates";
+import { daysBetween, fmtDay, nowMin, today, toMin } from "../lib/dates";
 import { dayRouteLinks, linkProps, providerFor, providerName, routeProvider, withRo } from "../lib/links";
 import { toast, useApp } from "../lib/store";
-import { hasGeo, itemsOfDay, legsOn, nowInfo, phase, tripDays, tripEnd } from "../lib/trip";
+import { hasGeo, itemsOfDay, legsOn, nightOf, nowInfo, phase, tripDays, tripEnd, tripLengthLabel } from "../lib/trip";
 import { Generating } from "./Generating";
 import { ShareSheet } from "./ShareSheet";
 import { ChatSheet, ItemSheet, RecsSheet, TripMenu } from "./TripSheets";
@@ -82,7 +82,7 @@ export function TripView({ id }: { id: string }) {
               ? out && (out.from || out.to) ? `${out.from} ${out.dep.slice(11, 16)} → ${out.to} ${out.arr.slice(11, 16)}` : `${trip.country} ${trip.city}`
               : `${trip.origin || "출발지"} → ${trip.city}${out?.arr ? ` ${out.arr.slice(11, 16)} 도착` : ""}`}
           </span>
-          <span className="sub">{fmtDay(trip.start)} – {fmtDay(tripEnd(trip))} · {durLabel(trip.nights)}{trip.season ? ` · ${trip.season}` : ""}</span>
+          <span className="sub">{fmtDay(trip.start)} – {fmtDay(tripEnd(trip))} · {tripLengthLabel(trip)}{trip.season ? ` · ${trip.season}` : ""}</span>
         </span>
         <span className="mono" style={{ fontSize: 15, fontWeight: 600 }}>{ph === "before" ? `D-${daysBetween(t0, trip.start)}` : ph === "during" ? "여행 중" : "다녀옴"}</span>
       </section>
@@ -103,7 +103,7 @@ export function TripView({ id }: { id: string }) {
           return (
             <button key={d} type="button" className={"day-tab" + (d === day ? " on" : "")} aria-pressed={d === day} onClick={() => { setDay(d); setSel(null); }}>
               <b>{i + 1}일차 · {fmtDay(d)}{d === t0 ? " · 오늘" : ""}</b>
-              <span>{trip.dayLabels[d] ? `${trip.dayLabels[d]} · ` : ""}{cnt ? `${cnt}곳` : "아직 비어 있어요"}</span>
+              <span>{trip.dayLabels[d] ? `${trip.dayLabels[d]} · ` : ""}{cnt ? `${cnt}곳` : "아직 비어 있어요"}{nightOf(trip, d) !== "stay" ? ` · 밤 ${nightOf(trip, d) === "flight" ? "기내" : "이동"}` : ""}</span>
             </button>
           );
         })}

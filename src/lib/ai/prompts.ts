@@ -1,5 +1,5 @@
-import { durLabel, fromMin, seasonOf, weekday } from "../dates";
-import { byTime, hasGeo, nowInfo, phase, tripDays, tripEnd } from "../trip";
+import { fromMin, seasonOf, weekday } from "../dates";
+import { byTime, hasGeo, nowInfo, phase, tripDays, tripEnd, tripLengthLabel } from "../trip";
 import type { Item, Trip } from "../types";
 
 export const RULES = `너는 여행 일정 앱 "트립보드"의 일정 담당 AI야. 사용자의 말에 따라 도구(add_items, update_items, delete_items, shift_items, update_trip)로 일정을 직접 고치고, 끝나면 무엇을 바꿨는지 한국어로 1~3문장으로 짧게 말해. 질문이면 도구 없이 짧게 답해.
@@ -20,7 +20,8 @@ export const RULES = `너는 여행 일정 앱 "트립보드"의 일정 담당 A
 - 사용자가 "ㅇㅇ", "그렇게 해줘", "추천한 대로 해줘"처럼 네가 바로 앞에 제안한 것에 동의하면, 그 제안대로 바로 고쳐.
 - 도구를 부르기 전에 설명을 길게 쓰지 마. 바꿀 게 많으면 delete_items, add_items처럼 나눠서 불러도 돼.
 - 이 대화는 여행 일정 전용이야. 여행 계획·일정·장소·이동·숙소·식당·날씨·현지 정보와 관련 없는 요청(코딩, 연애 상담, 숙제나 글쓰기, 투자, 잡담 등)은 도구를 쓰지 말고, 답을 "[범위밖]"으로 시작해서 여행 일정에 관한 것만 도울 수 있다고 한 문장으로 말하고, 할 수 있는 요청 예시를 하나 들어. 다른 설명이나 내용은 쓰지 마.
-- 답변에 표나 긴 목록은 쓰지 마.`;
+- 답변에 표나 긴 목록은 쓰지 마.
+- "숙소가_아닌_밤"에 있는 날 밤은 숙소에서 자지 않아. 그날 저녁에는 숙소 체크인이나 숙소 휴식을 넣지 말고, 공항·역으로 이동하는 시간을 넉넉히 넣어. 다음 날 아침은 도착 직후라는 걸 생각해.`;
 
 function tripSummary(t: Trip) {
   return {
@@ -28,7 +29,10 @@ function tripSummary(t: Trip) {
     종류: t.kind === "domestic" ? "국내" : "해외",
     나라: t.kind === "overseas" ? t.country : undefined,
     도시: t.city || "(미정: 네가 골라도 돼)",
-    기간: `${t.start} ~ ${tripEnd(t)} (${durLabel(t.nights)})`,
+    기간: `${t.start} ~ ${tripEnd(t)} (${tripLengthLabel(t)})`,
+    숙소가_아닌_밤: Object.keys(t.sleep ?? {}).length
+      ? Object.fromEntries(Object.entries(t.sleep!).map(([d, k]) => [d, k === "flight" ? "기내(밤 비행기)" : "야간 이동(버스·기차·배)"]))
+      : undefined,
     계절: t.season || seasonOf(t.start),
     출발지: t.origin || undefined,
     교통수단: t.transport || undefined,

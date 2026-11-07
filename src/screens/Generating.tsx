@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon";
 import { go } from "../components/ui";
 import { clearRunError, runAi, stopAi } from "../lib/ai/run";
-import { durLabel, fmtDay, seasonOf } from "../lib/dates";
+import { fmtDay, seasonOf } from "../lib/dates";
 import type { Run } from "../lib/store";
-import { routeLabel, tripDays, tripEnd } from "../lib/trip";
+import { routeLabel, tripDays, tripEnd, tripLengthLabel } from "../lib/trip";
 import type { Trip } from "../lib/types";
 
 export function Generating({ trip, run }: { trip: Trip; run: Run }) {
@@ -34,7 +34,7 @@ export function Generating({ trip, run }: { trip: Trip; run: Run }) {
         </span>
         <h1 style={{ fontSize: 26, letterSpacing: "-0.02em" }}>{trip.title}</h1>
         <span className="muted" style={{ fontSize: 14 }}>
-          <span className="mono">{fmtDay(trip.start)} – {fmtDay(tripEnd(trip))}</span> · {durLabel(trip.nights)}{routeLabel(trip) ? ` · ${routeLabel(trip)}` : ""}
+          <span className="mono">{fmtDay(trip.start)} – {fmtDay(tripEnd(trip))}</span> · {tripLengthLabel(trip)}{routeLabel(trip) ? ` · ${routeLabel(trip)}` : ""}
         </span>
       </div>
 

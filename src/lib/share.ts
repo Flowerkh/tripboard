@@ -9,9 +9,9 @@
  * Not shared: AI chat, the private memo, companions, settings and the API key.
  */
 import { SUPABASE_KEY, SUPABASE_URL } from "./config";
-import { durLabel, fmtDay } from "./dates";
+import { fmtDay } from "./dates";
 import { getState, setState } from "./store";
-import { byTime, legsOn, tripDays, tripEnd } from "./trip";
+import { byTime, legsOn, tripDays, tripEnd, tripLengthLabel } from "./trip";
 import type { Item, Trip } from "./types";
 
 export type SharedTrip = Omit<Trip, "id" | "createdAt" | "share">;
@@ -136,7 +136,7 @@ export function shareUrl(id: string) {
 export function tripText(trip: SharedTrip | Trip, items: Pick<Item, "day" | "start" | "title" | "place">[], link?: string): string {
   const t = { id: "", createdAt: 0, ...trip } as Trip;
   const where = t.kind === "overseas" ? [t.country, t.city].filter(Boolean).join(" ") : t.city;
-  const L: string[] = [`${t.kind === "overseas" ? "✈️" : "🚆"} ${t.title}`, `${fmtDay(t.start)} – ${fmtDay(tripEnd(t))} · ${durLabel(t.nights)}${where ? ` · ${where}` : ""}`];
+  const L: string[] = [`${t.kind === "overseas" ? "✈️" : "🚆"} ${t.title}`, `${fmtDay(t.start)} – ${fmtDay(tripEnd(t))} · ${tripLengthLabel(t)}${where ? ` · ${where}` : ""}`];
   tripDays(t).forEach((d, i) => {
     L.push("", `[${i + 1}일차 · ${fmtDay(d)}]${t.dayLabels[d] ? ` ${t.dayLabels[d]}` : ""}`);
     const rows: [string, string][] = [];

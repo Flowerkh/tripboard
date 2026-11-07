@@ -15,6 +15,9 @@
   --warn: #8a5a00;
   --warn-dot: #c98a00;
   --warn-soft: #fff1cc;
+  --move-soft: #fdebd6;
+  --move-ink: #7a3b00;
+  --move-line: #f0c99a;
   --bad: #b42828;
   --bad-dot: #cc3434;
   --bad-soft: #fde6e6;
@@ -49,6 +52,9 @@
   --warn: #f0bb45;
   --warn-dot: #e0a92e;
   --warn-soft: #3a2f13;
+  --move-soft: #3a2a17;
+  --move-ink: #f3b77a;
+  --move-line: #6b4a24;
   --bad: #ff8f8f;
   --bad-dot: #ff8f8f;
   --bad-soft: #3d1e25;
@@ -381,3 +387,43 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.5; resize: non
 .usage-bar i.full { background: var(--bad); }
 .login-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; color: var(--muted); }
 .kakao-btn.big-k { min-height: 56px; border-radius: 16px; width: 100%; font-size: 16px; }
+
+/* ---------- new trip · dates (가는 날 / 오는 날 + nights) ---------- */
+.date-fields { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.date-field { min-height: 64px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); text-align: left; padding: 8px 14px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font: inherit; cursor: pointer; }
+.date-field:hover { border-color: var(--accent); }
+.date-field .k { font-size: 12px; font-weight: 600; color: var(--muted); }
+.date-field b { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 17px; }
+.days-pill { padding: 4px 10px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.wd-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); }
+.wd-row .sun { color: var(--bad); }
+.wd-row .sat { color: var(--accent-text); }
+.night-grid { position: relative; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.night-cell { min-height: 62px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 0; font: inherit; cursor: pointer; }
+.night-cell .d { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 11px; font-weight: 600; color: var(--muted); }
+.night-cell .k { font-size: 11px; font-weight: 700; }
+.night-cell.flight { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+.night-cell.flight .d { color: var(--accent-text); }
+.night-cell.move { background: var(--move-soft); border-color: var(--move-line); color: var(--move-ink); }
+.night-cell.move .d { color: var(--move-ink); }
+.night-cell.picked { outline: 2px solid var(--accent); outline-offset: 1px; }
+.night-cell.home { border-style: dashed; background: transparent; cursor: default; }
+.night-pop { position: absolute; z-index: 5; width: 240px; box-sizing: border-box; padding: 10px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(10, 18, 34, 0.22); display: flex; flex-direction: column; gap: 8px; }
+.night-pop > b { font-size: 13px; padding: 0 2px; }
+.night-pop .opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.night-pop .opts button { min-height: 56px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.night-pop .opts button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+/* date sheet: months run on below each other */
+.date-sum { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; margin: 12px 16px 0; padding: 10px 12px; border-radius: 16px; background: var(--sunk); }
+.date-sum .k { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
+.date-sum b { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 16px; }
+.date-hint { margin: 8px 18px 0; font-size: 12px; color: var(--muted); }
+.date-sheet .wd-row { padding: 10px 16px 6px; border-bottom: 1px solid var(--line); }
+.date-months { flex: 1; min-height: 0; padding-top: 0; gap: 4px; }
+.date-months .m-title { font-size: 15px; font-weight: 700; padding: 12px 2px 4px; }
+.date-months .cal-day { height: 44px; }
+.date-months .cal-day .tag { display: block; font-family: var(--font); font-size: 9px; font-weight: 700; line-height: 1; }
+.sheet-foot { padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+.fit-note { display: flex; gap: 12px; padding: 14px; border-radius: 18px; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+.fit-note .chips-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
+.fit-note .chips-row span { padding: 4px 10px; border-radius: 999px; background: var(--surface); }
