@@ -374,7 +374,7 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.5; resize: non
 .kakao-btn.sm { min-height: 36px; padding: 0 12px; font-size: 13px; border-radius: 10px; }
 .kakao-btn:disabled { opacity: 0.7; cursor: progress; }
 .avatar { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; object-fit: cover; background: var(--accent-soft); color: var(--accent-text); font-weight: 800; flex: none; }
-.avatar-btn { position: relative; border: 0; padding: 0; background: none; border-radius: 50%; cursor: pointer; }
+.avatar-btn { position: relative; border: 0; padding: 0; background: none; border-radius: 50%; cursor: pointer; display: inline-flex; line-height: 0; } /* hug the picture: no text baseline gap under an <img> */
 .avatar-btn .dot { position: absolute; right: 0; top: 0; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bg); }
 .avatar-btn .dot.bad { background: var(--bad); }
 .geo-chip { display: inline-flex; align-items: center; gap: 6px; }
