@@ -446,7 +446,7 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.5; resize: non
 .help-count { font: 700 15px/1 var(--mono); color: var(--accent-text); }
 .help-count i { font-style: normal; font-weight: 600; color: var(--muted); }
 .help-where { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.help-head .icon-btn { border: 0; background: var(--sunk); margin-right: -4px; }
+.help-head .icon-btn { border: 0; background: transparent; color: var(--muted); margin-right: -10px; }
 .help-body { display: flex; flex-direction: column; gap: 2px; animation: help-in 0.28s ease-out; }
 .help-body b { font-size: 17px; line-height: 1.35; }
 .help-body p { font-size: 14px; line-height: 1.5; color: var(--muted); }
