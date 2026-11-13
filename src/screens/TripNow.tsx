@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
 import { fallbackView, MapView, type Pin } from "../components/MapView";
 import { AskBar, go } from "../components/ui";
+import { Help } from "../components/Help";
+import { HELP } from "../lib/help";
 import { KakaoButton } from "../components/Account";
 import { quickShift, runAi } from "../lib/ai/run";
 import { fromMin, toMin, untilLabel } from "../lib/dates";
@@ -53,7 +55,10 @@ export function TripNow({ id }: { id: string }) {
       <div className="now-top">
         <button type="button" className="icon-btn flat" aria-label="일정 보기로" onClick={() => go(`/trip/${id}`)}><Icon name="back" /></button>
         <span className="title-chip">{trip.city || trip.title}<span className="muted" style={{ fontWeight: 500 }}>{dayNo}일차{n.preview ? " · 미리보기" : " · 오늘"}</span></span>
-        <button type="button" className="icon-btn flat" style={{ color: "var(--accent-text)" }} aria-label="내 위치 보기" onClick={locate}><Icon name="locate" /></button>
+        <span style={{ display: "flex", gap: 8 }}>
+          <Help screen={HELP.now} auto className="flat" />
+          <button type="button" className="icon-btn flat" data-help="now-locate" style={{ color: "var(--accent-text)" }} aria-label="내 위치 보기" onClick={locate}><Icon name="locate" /></button>
+        </span>
       </div>
 
       <section className="now-sheet" aria-label="지금과 다음 일정">
@@ -88,8 +93,8 @@ export function TripNow({ id }: { id: string }) {
                   <b style={{ fontSize: 17 }}><span className="mono">{next.start}</span> {next.title}</b>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 8 }}>
-                  <a className="btn primary" href={dirLink(provider, next, trip)} {...linkProps(dirLink(provider, next, trip))}><Icon name="nav" size={17} stroke={2} />길찾기 · {providerName(provider)}</a>
-                  <button type="button" className="btn" onClick={() => quickShift(id, n.day, next.start, 30)}>30분 미루기</button>
+                  <a className="btn primary" data-help="now-nav" href={dirLink(provider, next, trip)} {...linkProps(dirLink(provider, next, trip))}><Icon name="nav" size={17} stroke={2} />길찾기 · {providerName(provider)}</a>
+                  <button type="button" className="btn" data-help="now-shift" onClick={() => quickShift(id, n.day, next.start, 30)}>30분 미루기</button>
                 </div>
               </div>
             ) : <p className="muted">오늘 남은 일정이 없어요.</p>}
@@ -102,7 +107,7 @@ export function TripNow({ id }: { id: string }) {
               </div>
             ))}
 
-            <div className="chips scroll">
+            <div className="chips scroll" data-help="now-chips">
               <button type="button" className="chip sm" disabled={!!s.run} onClick={() => ask("비가 와요. 오늘 남은 일정을 실내 위주로 바꿔줘")}><Icon name="rain" size={15} />비 와요, 실내로</button>
               <button type="button" className="chip sm" disabled={!!s.run} onClick={() => ask("지금 근처에서 저녁 먹을 곳을 추천해서 넣어줘")}>근처 저녁 추천</button>
               <button type="button" className="chip sm" disabled={!!s.run} onClick={() => ask("좀 지쳤어. 오늘 남은 일정 중 하나를 빼서 여유 있게 해줘")}>좀 지쳤어, 하나 빼줘</button>
@@ -113,7 +118,7 @@ export function TripNow({ id }: { id: string }) {
 
       <div className="askbar-wrap" style={{ zIndex: 750 }}>
         {s.user ? (
-          <AskBar id="now-ask" placeholder="말로 고치기 · 30분 늦어질 것 같아" onSend={ask} disabled={!!s.run} chat={{ open: chat, onToggle: () => setChat((v) => !v) }} />
+          <AskBar id="now-ask" help="now-ask" placeholder="말로 고치기 · 30분 늦어질 것 같아" onSend={ask} disabled={!!s.run} chat={{ open: chat, onToggle: () => setChat((v) => !v) }} />
         ) : (
           <div className="login-bar"><span>AI에게 말로 일정을 고치려면</span><KakaoButton small label="카카오로 로그인" /></div>
         )}

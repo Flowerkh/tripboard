@@ -3,6 +3,8 @@ import { Icon } from "../components/Icon";
 import { fallbackView, MapView, type Pin } from "../components/MapView";
 import { ItemRow, LegRow } from "../components/Timeline";
 import { AskBar, go } from "../components/ui";
+import { Help } from "../components/Help";
+import { HELP } from "../lib/help";
 import { canUseAi, LOGIN_FOR_AI, runAi } from "../lib/ai/run";
 import { KakaoButton } from "../components/Account";
 import { daysBetween, fmtDay, nowMin, today, toMin } from "../lib/dates";
@@ -68,9 +70,9 @@ export function TripView({ id }: { id: string }) {
     <main className="screen tight" style={{ paddingBottom: 110 }}>
       <header className="page-head" style={{ gap: 10 }}>
         <button type="button" className="icon-btn" aria-label="내 여행으로" onClick={() => go("/")}><Icon name="back" /></button>
-        <span style={{ width: 44, flex: "none" }} aria-hidden="true" />
+        <Help screen={HELP.trip} auto />
         <b style={{ fontSize: 17, flex: 1, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</b>
-        <button type="button" className={"icon-btn" + (trip.share ? " on-share" : "")} aria-label={trip.share ? "일정 공유 중" : "일정 공유"} onClick={() => setShare(true)}><Icon name="share" /></button>
+        <button type="button" data-help="share" className={"icon-btn" + (trip.share ? " on-share" : "")} aria-label={trip.share ? "일정 공유 중" : "일정 공유"} onClick={() => setShare(true)}><Icon name="share" /></button>
         <button type="button" className="icon-btn" aria-label="여행 설정" onClick={() => setMenu(true)}><Icon name="sliders" /></button>
       </header>
 
@@ -97,7 +99,7 @@ export function TripView({ id }: { id: string }) {
         <Icon name="right" size={16} />
       </button>
 
-      <nav className="days" aria-label="날짜">
+      <nav className="days" data-help="days" aria-label="날짜">
         {days.map((d, i) => {
           const cnt = items.filter((x) => x.day === d).length;
           return (
@@ -119,7 +121,7 @@ export function TripView({ id }: { id: string }) {
           </button>
         )}
         <button type="button" className="icon-btn flat map-over" style={{ top: 10, right: 10, width: 36, height: 36 }} aria-label={bigMap ? "지도 작게" : "지도 크게"} onClick={() => setBigMap(!bigMap)}><Icon name="expand" size={18} /></button>
-        {routes[0] && <a className="float-chip map-over" style={{ left: 10, bottom: 10 }} href={routes[0]} {...linkProps(routes[0])}>{withRo(providerName(routeVia))} 동선 보기 ↗</a>}
+        {routes[0] && <a className="float-chip map-over" data-help="route" style={{ left: 10, bottom: 10 }} href={routes[0]} {...linkProps(routes[0])}>{withRo(providerName(routeVia))} 동선 보기 ↗</a>}
       </section>
       <style>{bigMap ? ".map-card .map.big{height:420px}" : ""}</style>
 
@@ -144,7 +146,7 @@ export function TripView({ id }: { id: string }) {
           if ("l" in e && e.l) return <LegRow key={e.l.key} leg={e.l} trip={trip} />;
           const it = (e as { it: (typeof list)[number] }).it;
           const row = (
-            <ItemRow key={it.id} it={it} n={num.get(it.id)} prev={prev} trip={trip} provider={provider} selected={sel === it.id}
+            <ItemRow key={it.id} it={it} n={num.get(it.id)} prev={prev} help={prev ? undefined : "item"} trip={trip} provider={provider} selected={sel === it.id}
               isNow={now?.cur?.id === it.id} past={isToday && (toMin(it.end) ?? (toMin(it.start) ?? 0) + 30) <= nowMin()} onOpen={() => { setSel(it.id); setSheet({ id: it.id }); }} />
           );
           prev = it;
@@ -176,7 +178,7 @@ export function TripView({ id }: { id: string }) {
 
       <div className="askbar-wrap">
         {s.user ? (
-          <AskBar id="trip-ask" placeholder={list.length ? "말로 고치기 · 점심은 국밥집으로" : `예: ${dayIdx + 1}일차는 바다 위주로 짜줘`} onSend={ask} disabled={!!s.run} chat={{ open: chat, onToggle: () => setChat((v) => !v) }} />
+          <AskBar id="trip-ask" help="trip-ask" placeholder={list.length ? "말로 고치기 · 점심은 국밥집으로" : `예: ${dayIdx + 1}일차는 바다 위주로 짜줘`} onSend={ask} disabled={!!s.run} chat={{ open: chat, onToggle: () => setChat((v) => !v) }} />
         ) : (
           <div className="login-bar"><span>AI에게 말로 일정을 고치려면</span><KakaoButton small label="카카오로 로그인" /></div>
         )}

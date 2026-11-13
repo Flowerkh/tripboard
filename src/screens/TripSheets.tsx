@@ -3,6 +3,8 @@ import { Icon } from "../components/Icon";
 import { stopShareQuietly } from "../lib/share";
 import { fallbackView, MapView } from "../components/MapView";
 import { AskBar, ConfirmButton, go, Sheet, TimeInput } from "../components/ui";
+import { Help } from "../components/Help";
+import { HELP } from "../lib/help";
 import { applyPending, discardPending, runAi, stopAi } from "../lib/ai/run";
 import { KakaoButton } from "../components/Account";
 import { fmtDay, normTime, uid } from "../lib/dates";
@@ -40,6 +42,7 @@ export function ChatSheet({ trip, viewingDay, onClose }: { trip: Trip; viewingDa
           <b style={{ fontSize: 16 }}>말로 일정 고치기</b>
           <span className="muted" style={{ fontSize: 12 }}>{trip.title}</span>
         </span>
+        <Help screen={HELP.chat} auto={!msgs.length && !run} scrollTop={false} />
         <button type="button" className="icon-btn" aria-label="닫기" onClick={onClose}><Icon name="close" size={18} /></button>
       </div>
       {!s.user && (
@@ -56,10 +59,10 @@ export function ChatSheet({ trip, viewingDay, onClose }: { trip: Trip; viewingDa
               <h2 style={{ fontSize: 19 }}>말하면 일정과 지도가 바로 바뀌어요</h2>
               <p className="muted" style={{ fontSize: 14 }}>바뀐 내용은 언제든 되돌릴 수 있어요.</p>
             </div>
-            {examples.map(([title, items]) => (
+            {examples.map(([title, items], i) => (
               <div key={title} className="sec" style={{ gap: 8 }}>
                 <span className="label">{title}</span>
-                {items.map((q) => <button key={q} type="button" className="suggest" onClick={() => send(q)}><span>“{q}”</span><Icon name="right" size={15} stroke={2} className="muted" /></button>)}
+                {items.map((q, j) => <button key={q} type="button" className="suggest" data-help={i || j ? undefined : "chat-examples"} onClick={() => send(q)}><span>“{q}”</span><Icon name="right" size={15} stroke={2} className="muted" /></button>)}
               </div>
             ))}
           </div>
@@ -78,7 +81,7 @@ export function ChatSheet({ trip, viewingDay, onClose }: { trip: Trip; viewingDa
                 )}
                 {undo?.msgId === m.id && !run && (
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button type="button" className="btn sm" onClick={() => undoLast(trip.id)}><Icon name="undo" size={15} stroke={2} />되돌리기</button>
+                    <button type="button" className="btn sm" data-help="chat-undo" onClick={() => undoLast(trip.id)}><Icon name="undo" size={15} stroke={2} />되돌리기</button>
                     <button type="button" className="btn sm" onClick={onClose}><Icon name="map" size={15} />지도에서 보기</button>
                   </div>
                 )}
@@ -94,7 +97,7 @@ export function ChatSheet({ trip, viewingDay, onClose }: { trip: Trip; viewingDa
         )}
       </div>
       <div style={{ padding: "10px 14px calc(14px + env(safe-area-inset-bottom))", borderTop: "1px solid var(--line)", background: "var(--surface)" }}>
-        <AskBar id="chat-ask" placeholder="예: 저녁을 1시간 당겨줘" onSend={send} disabled={!!s.run} chat={{ open: true, onToggle: onClose }} />
+        <AskBar id="chat-ask" help="chat-ask" placeholder="예: 저녁을 1시간 당겨줘" onSend={send} disabled={!!s.run} chat={{ open: true, onToggle: onClose }} />
       </div>
     </Sheet>
   );

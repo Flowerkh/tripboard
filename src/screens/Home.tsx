@@ -1,16 +1,18 @@
 import { Avatar, KakaoButton } from "../components/Account";
 import { Icon } from "../components/Icon";
 import { go } from "../components/ui";
+import { Help } from "../components/Help";
 import { daysBetween, fmtDay, today, untilLabel } from "../lib/dates";
 import { dirLink, linkProps, providerFor } from "../lib/links";
+import { HELP } from "../lib/help";
 import { loadSamples, useApp } from "../lib/store";
 import { nowInfo, phase, routeLabel, tripDays, tripEnd, tripLengthLabel } from "../lib/trip";
 import type { Trip } from "../lib/types";
 
-function TripCard({ t, right, past }: { t: Trip; right: string; past?: boolean }) {
+function TripCard({ t, right, past, help }: { t: Trip; right: string; past?: boolean; help?: string }) {
   const dom = t.kind === "domestic";
   return (
-    <button type="button" className="trip-card" style={past ? { borderStyle: "dashed", background: "transparent" } : undefined} onClick={() => go(`/trip/${t.id}`)}>
+    <button type="button" className="trip-card" data-help={help} style={past ? { borderStyle: "dashed", background: "transparent" } : undefined} onClick={() => go(`/trip/${t.id}`)}>
       <span className={"ic" + (dom ? " dom" : "")}><Icon name={dom ? "train" : "flight"} size={22} stroke={1.7} /></span>
       <span className="body">
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -45,15 +47,16 @@ export function Home() {
           <h1>내 여행</h1>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {s.user === null && <KakaoButton small label="로그인" />}
+          <Help screen={HELP.home} auto />
+          {s.user === null && <KakaoButton small label="로그인" help="login" />}
           {s.ai?.is_admin && <button type="button" className="icon-btn" aria-label="관리자 페이지" title="관리자 페이지" onClick={() => go("/admin")}><Icon name="shield" /></button>}
           {s.user ? (
-            <button type="button" className="avatar-btn" aria-label={`${s.user.name} · 계정과 설정`} onClick={() => go("/settings")}>
+            <button type="button" className="avatar-btn" data-help="account" aria-label={`${s.user.name} · 계정과 설정`} onClick={() => go("/settings")}>
               <Avatar user={s.user} size={40} />
               {s.sync.state === "error" && <i className="dot bad" aria-hidden="true" />}
             </button>
           ) : (
-            <button type="button" className="icon-btn" aria-label="설정" onClick={() => go("/settings")}><Icon name="sliders" /></button>
+            <button type="button" className="icon-btn" data-help="account" aria-label="설정" onClick={() => go("/settings")}><Icon name="sliders" /></button>
           )}
         </div>
       </header>
@@ -61,7 +64,7 @@ export function Home() {
       <section className="sec">
         <h2>지금 여행 중</h2>
         {current ? <LiveCard t={current} /> : nextTrip ? (
-          <div className="dashed" style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 16 }}>
+          <div className="dashed" data-help="now" style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 16 }}>
             <span style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 76 }}>
               <span className="mono" style={{ fontSize: 30, fontWeight: 600, lineHeight: 1.1, color: "var(--accent-text)" }}>D-{daysBetween(t0, nextTrip.start)}</span>
               <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)" }}>다음 여행까지</span>
@@ -85,7 +88,7 @@ export function Home() {
 
       <section className="sec">
         <h2>다가오는 여행</h2>
-        {upcoming.map((t) => <TripCard key={t.id} t={t} right={`D-${daysBetween(t0, t.start)}`} />)}
+        {upcoming.map((t, i) => <TripCard key={t.id} t={t} right={`D-${daysBetween(t0, t.start)}`} help={i === 0 ? "card" : undefined} />)}
         {live.slice(1).map((t) => <TripCard key={t.id} t={t} right="여행 중" />)}
         {upcoming.length ? (
           <button type="button" className="btn dashed" style={{ borderRadius: 16, color: "var(--muted)" }} onClick={() => go("/new")}><Icon name="plus" size={16} stroke={2} />여행 하나 더 계획하기</button>
@@ -102,14 +105,14 @@ export function Home() {
               <button type="button" className="btn" onClick={() => go("/new/overseas")}><Icon name="globe" size={17} />해외여행</button>
               <button type="button" className="btn" onClick={() => go("/new/domestic")}><Icon name="train" size={17} />국내여행</button>
             </div>
-            {empty && <button type="button" className="link-btn" onClick={loadSamples}>샘플 여행 2개 넣어서 둘러보기</button>}
+            {empty && <button type="button" className="link-btn" data-help="samples" onClick={loadSamples}>샘플 여행 2개 넣어서 둘러보기</button>}
           </div>
         )}
       </section>
 
       <section className="sec">
         <h2>다녀온 여행</h2>
-        {past.length ? past.map((t) => <TripCard key={t.id} t={t} right="" past />) : (
+        {past.length ? past.map((t, i) => <TripCard key={t.id} t={t} right="" past help={!upcoming.length && i === 0 ? "card" : undefined} />) : (
           <div className="dashed" style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
             <span className="muted" style={{ fontSize: 15, fontWeight: 600 }}>아직 다녀온 여행이 없어요</span>
             <span className="muted" style={{ fontSize: 13 }}>{nextTrip ? `${nextTrip.title}이 끝나면` : "끝난 여행은"} 일정과 함께 여기에 모여요.</span>
@@ -118,7 +121,7 @@ export function Home() {
       </section>
 
       <div className="dock-bottom">
-        <button type="button" className="btn primary big" style={{ boxShadow: "var(--shadow)" }} onClick={() => go("/new")}><Icon name="plus" stroke={2.2} />새 여행 만들기</button>
+        <button type="button" className="btn primary big" data-help="new" style={{ boxShadow: "var(--shadow)" }} onClick={() => go("/new")}><Icon name="plus" stroke={2.2} />새 여행 만들기</button>
       </div>
     </main>
   );
@@ -133,7 +136,7 @@ function LiveCard({ t }: { t: Trip }) {
   const provider = providerFor(t, s.settings);
   const nowStr = new Date().toTimeString().slice(0, 5);
   return (
-    <div className="pass">
+    <div className="pass" data-help="now">
       <button type="button" onClick={() => go(`/trip/${t.id}/now`)} style={{ all: "unset", cursor: "pointer", display: "flex", flexDirection: "column", gap: 12 }} aria-label={`${t.title} 여행 중 화면 열기`}>
         <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span className="tag">{t.kind === "domestic" ? "국내" : "해외"} · {t.kind === "domestic" ? t.city : t.country}</span>

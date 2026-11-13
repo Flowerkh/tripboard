@@ -427,3 +427,26 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.5; resize: non
 .fit-note { display: flex; gap: 12px; padding: 14px; border-radius: 18px; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
 .fit-note .chips-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
 .fit-note .chips-row span { padding: 4px 10px; border-radius: 999px; background: var(--surface); }
+
+/* 화면 설명 레이어 (components/Help.tsx) */
+:root { --mark: #ffc94a; --mark-ink: #241a00; --help-dim: rgba(9, 14, 28, 0.62); }
+:root[data-theme="dark"] { --help-dim: rgba(0, 0, 0, 0.68); }
+.help-btn.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.help-layer { position: fixed; inset: 0; z-index: 1500; }
+.help-dim { position: absolute; inset: 0; width: 100%; height: 100%; }
+.help-dim > rect { fill: var(--help-dim); }
+.help-ring { position: absolute; box-shadow: 0 0 0 3px var(--mark); pointer-events: none; }
+.help-num { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: var(--mark); color: var(--mark-ink); font: 600 13px/1 var(--mono); display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); pointer-events: none; }
+.help-num.static { position: static; flex: none; box-shadow: none; }
+.help-card { position: absolute; box-sizing: border-box; background: var(--surface); color: var(--ink); border-radius: 20px; padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.3); overflow: auto; overscroll-behavior: contain; }
+.help-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.help-head b { font-size: 16px; }
+.help-head .icon-btn { border: 0; background: var(--sunk); margin-right: -4px; }
+.help-card ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.help-card li { display: flex; gap: 10px; align-items: flex-start; }
+.help-card li > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.help-card li b { font-size: 14px; line-height: 20px; }
+.help-card li span span { font-size: 13px; line-height: 18px; color: var(--muted); }
+.help-foot { font-size: 12px; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .help-layer { animation: help-in 0.18s ease-out; } }
+@keyframes help-in { from { opacity: 0; } }

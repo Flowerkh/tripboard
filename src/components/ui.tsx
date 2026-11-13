@@ -42,7 +42,8 @@ export function Sheet({ onClose, label, tall, children }: { onClose: () => void;
 const SR: any = typeof window !== "undefined" ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition : null;
 
 /** chat: the button that opens the trip's AI chat, and closes it again from inside the chat (a toggle). */
-export function AskBar({ placeholder, onSend, disabled, autoFocus, id, chat }: { placeholder: string; onSend: (text: string) => void; disabled?: boolean; autoFocus?: boolean; id: string; chat?: { open: boolean; onToggle: () => void } }) {
+/** help: data-help id for the 화면 설명 layer (the chat button gets "<help>-toggle"). */
+export function AskBar({ placeholder, onSend, disabled, autoFocus, id, chat, help }: { placeholder: string; onSend: (text: string) => void; disabled?: boolean; autoFocus?: boolean; id: string; chat?: { open: boolean; onToggle: () => void }; help?: string }) {
   const [v, setV] = useState("");
   const [listening, setListening] = useState(false);
   const rec = useRef<any>(null);
@@ -66,9 +67,9 @@ export function AskBar({ placeholder, onSend, disabled, autoFocus, id, chat }: {
     setListening(true);
   };
   return (
-    <form className="askbar" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+    <form className="askbar" data-help={help} onSubmit={(e) => { e.preventDefault(); submit(); }}>
       {chat && (
-        <button type="button" className={"icon-btn chat-toggle" + (chat.open ? " on" : "")} aria-pressed={chat.open} aria-label={chat.open ? "AI 대화 닫기" : "AI 대화 열기"} title={chat.open ? "AI 대화 닫기" : "AI 대화 · 이전 기록"} onClick={chat.onToggle}>
+        <button type="button" data-help={help && help + "-toggle"} className={"icon-btn chat-toggle" + (chat.open ? " on" : "")} aria-pressed={chat.open} aria-label={chat.open ? "AI 대화 닫기" : "AI 대화 열기"} title={chat.open ? "AI 대화 닫기" : "AI 대화 · 이전 기록"} onClick={chat.onToggle}>
           <Icon name="chat" />
         </button>
       )}

@@ -7,6 +7,7 @@ import { logout, sync } from "../lib/cloud";
 import { Avatar, KakaoButton, NameEditor, WithdrawSheet } from "../components/Account";
 import { useState } from "react";
 import { ago } from "./ShareSheet";
+import { resetHelp } from "../components/Help";
 
 function Mini({ mode }: { mode: ThemePref }) {
   const half = (cls: "l" | "d") => <span className={cls}><b /><i style={{ width: "80%" }} /><i style={{ width: "60%" }} /><u /></span>;
@@ -135,6 +136,16 @@ export function Settings() {
             </div>
           </>
         )}
+      </section>
+
+      <section className="sec">
+        <h2>도움말</h2>
+        <div className="card list-card">
+          <div className="list-row">
+            <span>화면 설명<small>화면마다 오른쪽 위 ? 를 누르면 버튼마다 번호를 붙여 알려 줘요</small></span>
+            <button type="button" className="btn sm" style={{ flex: "none" }} onClick={() => { resetHelp(); toast("화면에 처음 들어갈 때처럼 설명이 다시 떠요"); }}>다시 보기</button>
+          </div>
+        </div>
       </section>
 
       <section className="sec">

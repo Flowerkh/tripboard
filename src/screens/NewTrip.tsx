@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconKey } from "../components/Icon";
 import { go, Sheet, Switch, TimeInput } from "../components/ui";
+import { Help } from "../components/Help";
+import { HELP } from "../lib/help";
 import { addDays, daysBetween, fmtDay, parseDay, pad, seasonOf, today } from "../lib/dates";
 import { cleanSleep, NIGHT_LABEL, nightOf, sleepCounts, sleepNote, tripDurLabel, tripNights } from "../lib/trip";
 import { canUseAi, LOGIN_FOR_AI, readFlights, runAi } from "../lib/ai/run";
@@ -89,6 +91,7 @@ export function NewTrip({ kind, editId }: { kind?: string; editId?: string }) {
     }
   };
 
+  const help = w.step === 1 ? HELP.kind : w.step === 2 ? HELP.dates : w.step === 3 ? (w.kind === "overseas" ? HELP.overseas : HELP.domestic) : HELP.style;
   return (
     <main className="screen" style={{ gap: 18 }}>
       <header style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -97,6 +100,7 @@ export function NewTrip({ kind, editId }: { kind?: string; editId?: string }) {
         </button>
         <div className="progress" aria-hidden="true">{[1, 2, 3, 4].map((i) => <span key={i} className={i <= w.step ? "on" : ""} />)}</div>
         <span className="mono muted" style={{ fontSize: 13, fontWeight: 600 }}>{w.step}/4</span>
+        <Help key={help.id} screen={help} auto={help.id === "new-2" && !editing} />
       </header>
 
       {w.step === 1 && <StepKind w={w} set={set} />}
@@ -111,7 +115,7 @@ export function NewTrip({ kind, editId }: { kind?: string; editId?: string }) {
         ) : editing ? (
           <button type="button" className="btn primary big" onClick={() => finish("save")}>저장</button>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
+          <div data-help="st-finish" style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
             <button type="button" className="btn big" onClick={() => finish("empty")}>빈 일정으로</button>
             {canUseAi()
               ? <button type="button" className="btn primary big" onClick={() => finish("ai")}><Icon name="sparkle" />AI로 일정 짜기</button>
@@ -127,7 +131,7 @@ type StepProps = { w: W; set: (p: Partial<W>) => void };
 
 function StepKind({ w, set }: StepProps) {
   const opt = (k: Kind, icon: "globe" | "train", title: string, sub: string, tags: string[]) => (
-    <button type="button" className={"kind" + (w.kind === k ? " on" : "")} aria-pressed={w.kind === k} onClick={() => set({ kind: k, step: 2 })}>
+    <button type="button" data-help={`kind-${k}`} className={"kind" + (w.kind === k ? " on" : "")} aria-pressed={w.kind === k} onClick={() => set({ kind: k, step: 2 })}>
       {w.kind === k && <span className="check"><Icon name="check" size={16} stroke={2.6} /></span>}
       <span style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <span className="ic" style={{ background: k === "overseas" ? "var(--accent-soft)" : "var(--good-soft)", color: k === "overseas" ? "var(--accent-text)" : "var(--good)" }}><Icon name={icon} size={26} stroke={1.6} /></span>
@@ -197,7 +201,7 @@ function StepDates({ w, set }: StepProps) {
     <>
       <h1 style={{ fontSize: 26, letterSpacing: "-0.02em" }}>언제, 며칠 가요?</h1>
       <section className="sec" aria-label="날짜" style={{ gap: 8 }}>
-        <div className="date-fields">
+        <div className="date-fields" data-help="dates">
           <button type="button" className="date-field" aria-label={`가는 날 바꾸기, 지금 ${fmtDay(w.start)}`} onClick={() => setSheet("both")}>
             <span className="k">가는 날</span><b>{fmtDay(w.start)}</b>
           </button>
@@ -215,14 +219,14 @@ function StepDates({ w, set }: StepProps) {
             <h2 id="night-title" style={{ fontSize: 17 }}>밤마다 어디서 자요?</h2>
             <span className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>기본은 모두 숙소예요. 밤 비행기나 야간 버스 · 기차를 타는 밤은 칸을 눌러 바꿔 주세요.</span>
           </div>
-          <div className="chips">
+          <div className="chips" data-help="presets" style={{ alignSelf: "flex-start" }}>
             {presets.map(([label, d]) => {
               const on = kindOf(d) === "flight";
               return <button key={label} type="button" className={"chip sm" + (on ? " on" : "")} aria-pressed={on} onClick={() => setKind(d, on ? "stay" : "flight")}><Icon name="flight" size={15} />{label}</button>;
             })}
           </div>
           <div className="wd-row" aria-hidden="true">{"일월화수목금토".split("").map((x, i) => <span key={x} className={i === 0 ? "sun" : i === 6 ? "sat" : ""}>{x}</span>)}</div>
-          <div className="night-grid" ref={gridRef}>
+          <div className="night-grid" data-help="nights" ref={gridRef}>
             {cells.map((c, i) => {
               if (!c) return <span key={i} />;
               const firstOfMonth = c.d === w.start || c.d.endsWith("-01");
@@ -461,7 +465,7 @@ function StepOverseas({ w, set }: StepProps) {
       <h1 style={{ fontSize: 26, letterSpacing: "-0.02em" }}>어느 나라로, 어떤 비행기로?</h1>
       <div className="field">
         <label className="label" htmlFor="ov-country">나라</label>
-        <input id="ov-country" className="input" value={w.country} placeholder="예: 일본" onChange={(e) => set({ country: e.target.value })} />
+        <input id="ov-country" data-help="ov-place" className="input" value={w.country} placeholder="예: 일본" onChange={(e) => set({ country: e.target.value })} />
         <div className="chips scroll">{COUNTRIES.map((c) => <button key={c} type="button" className={"chip sm" + (w.country === c ? " on" : "")} onClick={() => set({ country: c })}>{c}</button>)}</div>
       </div>
       <div className="field">
@@ -472,7 +476,7 @@ function StepOverseas({ w, set }: StepProps) {
       <div className="sec">
         <div className="sec-row">
           <span className="label">항공편 (현지 시각)</span>
-          <button type="button" className="btn sm" style={{ color: "var(--accent-text)" }} onClick={() => (canUseAi() ? file.current?.click() : toast(LOGIN_FOR_AI))} disabled={reading}>
+          <button type="button" className="btn sm" data-help="ov-ticket" style={{ color: "var(--accent-text)" }} onClick={() => (canUseAi() ? file.current?.click() : toast(LOGIN_FOR_AI))} disabled={reading}>
             <Icon name="camera" size={16} />{reading ? "읽는 중…" : "e-티켓 캡처로 채우기"}
           </button>
           <input ref={file} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
@@ -499,7 +503,7 @@ function StepOverseas({ w, set }: StepProps) {
             </span>
           </section>
         )}
-        <label className="toggle" htmlFor="ov-noflight">
+        <label className="toggle" htmlFor="ov-noflight" data-help="ov-noflight">
           <span>항공편은 아직 안 정했어요</span>
           <Switch id="ov-noflight" checked={w.noFlight} onChange={(v) => set({ noFlight: v })} label="항공편 미정" />
         </label>
@@ -514,7 +518,7 @@ function StepDomestic({ w, set }: StepProps) {
       <h1 style={{ fontSize: 26, letterSpacing: "-0.02em" }}>어느 도시로, 어떻게 가요?</h1>
       <div className="field">
         <label className="label" htmlFor="dm-city">도시</label>
-        <input id="dm-city" className="input" value={w.city} placeholder="예: 부산" onChange={(e) => set({ city: e.target.value })} />
+        <input id="dm-city" data-help="dm-city" className="input" value={w.city} placeholder="예: 부산" onChange={(e) => set({ city: e.target.value })} />
         <div className="chips">{CITIES.map((c) => <button key={c} type="button" className={"chip sm" + (w.city === c ? " on" : "")} onClick={() => set({ city: c })}>{c}</button>)}</div>
       </div>
       <div className="field">
@@ -523,7 +527,7 @@ function StepDomestic({ w, set }: StepProps) {
       </div>
       <div className="field">
         <span className="label">교통수단</span>
-        <div className="seg" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+        <div className="seg" data-help="dm-transport" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
           {TRANSPORT.map(([t, ic]) => (
             <button key={t} type="button" className={w.transport === t ? "on" : ""} aria-pressed={w.transport === t} style={{ height: 74, fontSize: 13 }} onClick={() => set({ transport: w.transport === t ? "" : t })}>
               <Icon name={ic} size={22} stroke={1.7} />{t}
@@ -531,7 +535,7 @@ function StepDomestic({ w, set }: StepProps) {
           ))}
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div data-help="dm-times" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div className="field"><label className="label" htmlFor="dm-arr">첫날 {w.city || "현지"} 도착</label><TimeInput id="dm-arr" placeholder="10:30" value={w.arrTime} onChange={(v) => set({ arrTime: v })} /></div>
         <div className="field"><label className="label" htmlFor="dm-dep">마지막 날 {w.city || "현지"} 출발</label><TimeInput id="dm-dep" placeholder="18:00" value={w.depTime} onChange={(v) => set({ depTime: v })} /></div>
       </div>
@@ -546,11 +550,11 @@ function StepStyle({ w, set, autoTitle }: StepProps & { autoTitle: string }) {
       <h1 style={{ fontSize: 26, letterSpacing: "-0.02em" }}>누구와, 어떤 여행?</h1>
       <div className="field">
         <span className="label">누구와</span>
-        <div className="chips">{WHO.map((c) => <button key={c} type="button" className={"chip" + (w.who === c ? " on" : "")} aria-pressed={w.who === c} onClick={() => set({ who: w.who === c ? "" : c })}>{c}</button>)}</div>
+        <div className="chips" data-help="st-who">{WHO.map((c) => <button key={c} type="button" className={"chip" + (w.who === c ? " on" : "")} aria-pressed={w.who === c} onClick={() => set({ who: w.who === c ? "" : c })}>{c}</button>)}</div>
       </div>
       <div className="field">
         <span className="label">좋아하는 것 · 여러 개 골라도 돼요</span>
-        <div className="chips">
+        <div className="chips" data-help="st-likes">
           {LIKES.map((c) => {
             const on = w.likes.includes(c);
             return <button key={c} type="button" className={"chip" + (on ? " on" : "")} aria-pressed={on} onClick={() => set({ likes: on ? w.likes.filter((x) => x !== c) : [...w.likes, c] })}>{on && <Icon name="check" size={14} stroke={2.8} />}{c}</button>;
@@ -559,7 +563,7 @@ function StepStyle({ w, set, autoTitle }: StepProps & { autoTitle: string }) {
       </div>
       <div className="field">
         <span className="label">하루 페이스</span>
-        <div className="seg" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+        <div className="seg" data-help="st-pace" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
           {PACES.map(([p, d]) => (
             <button key={p} type="button" className={w.pace === p ? "on" : ""} aria-pressed={w.pace === p} style={{ height: 64 }} onClick={() => set({ pace: p })}>
               <span style={{ fontSize: 15 }}>{p}</span><span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>{d}</span>

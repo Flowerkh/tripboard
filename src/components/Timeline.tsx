@@ -26,10 +26,12 @@ export function LegRow({ leg, trip }: { leg: LegOnDay; trip: Trip }) {
   );
 }
 
-export function ItemRow({ it, n, prev, trip, provider, selected, isNow, past, onOpen, readOnly }: {
+export function ItemRow({ it, n, prev, trip, provider, selected, isNow, past, onOpen, readOnly, help }: {
   it: Item; n?: number; prev?: Item | null; trip: Trip; provider: Provider; selected: boolean; isNow: boolean; past: boolean; onOpen: () => void;
   /** shared-link view: no editing, no done toggle */
   readOnly?: boolean;
+  /** data-help id for the 화면 설명 layer */
+  help?: string;
 }) {
   const geo = hasGeo(it);
   const canLink = !!it.place || geo;
@@ -43,7 +45,7 @@ export function ItemRow({ it, n, prev, trip, provider, selected, isNow, past, on
       </span>
       <span className="rail"><i /></span>
       <div className="item">
-        <button type="button" className="item-main" onClick={onOpen} aria-label={`${it.title} 자세히`}>
+        <button type="button" className="item-main" data-help={help} onClick={onOpen} aria-label={`${it.title} 자세히`}>
           <span className="item-title">
             {n ? <span className="num">{n}</span> : null}
             <Icon name={it.icon} size={17} className="muted" />
